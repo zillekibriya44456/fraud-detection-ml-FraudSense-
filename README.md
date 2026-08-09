@@ -30,7 +30,8 @@ The project will evaluate multiple algorithms to find the best balance of recall
 - **Anomaly Detection:** Isolation Forest
 
 ## Dataset
-[Dataset to be selected in Phase 2]
+The project utilizes the **PaySim** dataset, a synthetic dataset of mobile money transactions. It is widely used in academic research because it provides non-anonymized, interpretable features (such as `amount`, `oldbalanceOrg`, `newbalanceOrig`) which are essential for behavioral feature engineering and Explainable AI (SHAP). 
+Detailed dataset documentation can be found in `docs/dataset.md`.
 
 ## Evaluation Metrics
 Primary fraud-focused metrics:
