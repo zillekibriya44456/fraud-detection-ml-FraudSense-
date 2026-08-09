@@ -1,0 +1,29 @@
+# Data processing
+pandas
+numpy
+scikit-learn
+
+# Visualization
+matplotlib
+seaborn
+plotly
+
+# Imbalanced learning
+imbalanced-learn
+
+# Machine Learning
+xgboost
+
+# Explainable AI
+shap
+
+# Web Application
+streamlit
+
+# API
+fastapi
+uvicorn
+
+# Testing & Validation
+pytest
+pydantic

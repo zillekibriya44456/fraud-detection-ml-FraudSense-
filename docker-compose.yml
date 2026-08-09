@@ -1,0 +1,10 @@
+# Basic future-ready Docker Compose structure
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=development
+    # Note: Database service is planned infrastructure and will be added here
