@@ -2,6 +2,7 @@
 pandas
 numpy
 scikit-learn
+joblib
 
 # Visualization
 matplotlib
@@ -19,11 +20,16 @@ shap
 
 # Web Application
 streamlit
+requests
 
 # API
 fastapi
 uvicorn
+httpx2
 
 # Testing & Validation
 pytest
 pydantic
+
+# Database
+sqlalchemy

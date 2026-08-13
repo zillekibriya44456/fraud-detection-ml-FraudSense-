@@ -15,10 +15,15 @@ data/processed/*
 data/external/*
 !data/external/README.md
 !data/external/.gitkeep
+data/downloads/*
+!data/downloads/.gitkeep
 
 models/*
 !models/README.md
 !models/.gitkeep
+
+# SQLite audit database (local only)
+*.db
 
 *.log
 .DS_Store
