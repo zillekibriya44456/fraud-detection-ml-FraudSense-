@@ -1,33 +1,33 @@
 # Feature Availability Analysis
 
-## Real-Time Pre-Transaction Fraud Risk Assessment
+## 1. Purpose
+The purpose of this analysis is to rigidly enforce the boundary between what information is known *before* a financial transaction is authorized, and what information is only known *after*. Using post-transaction information to predict fraud creates Data Leakage, rendering the model useless in a live environment.
 
-This document analyzes the availability of features in the PaySim dataset within the context of a real-time, pre-authorization fraud prevention system.
+## 2. Complete Feature Inventory
+| Feature Name | Source | Original/Derived | Used by Pre-Auth Model? | Leakage Risk? |
+|---|---|---|---|---|
+| `step` | Dataset | Original | Yes | None |
+| `type` | Dataset | Original | Yes | None |
+| `amount` | Dataset | Original | Yes | None |
+| `oldbalanceOrg` | Dataset | Original | Yes | None |
+| `oldbalanceDest`| Dataset | Original | Yes | None |
+| `newbalanceOrig`| Dataset | Original | No (Dropped) | High (Post-Auth) |
+| `newbalanceDest`| Dataset | Original | No (Dropped) | High (Post-Auth) |
 
-The core engineering constraint is that a machine learning model cannot use information that hasn't happened yet to make a decision. In traditional fraud datasets, features are often aggregated post-transaction, leading to data leakage if not carefully modeled.
+## 3. Pre-Transaction Features (CATEGORY A)
+- `step`, `type`, `oldbalanceOrg`, `oldbalanceDest`
+These are known the moment the API request payload is formed.
 
-### Categorization Key
-- **CATEGORY A (PRE-TRANSACTION AVAILABLE):** Features realistically available before authorization. Safe for real-time inference.
-- **CATEGORY B (AVAILABLE DURING AUTHORIZATION):** Features derived during the payment processing window. Safe for real-time inference.
-- **CATEGORY C (POST-TRANSACTION):** Features only reliably available after transaction completion. UNSAFE for pre-authorization.
+## 4. During-Authorization Features (CATEGORY B)
+- `amount`
+This is parsed from the live request while authorization logic executes.
 
----
+## 5. Post-Transaction Features (CATEGORY C)
+- `newbalanceOrig`, `newbalanceDest`
+These features *depend on the transaction succeeding*. If a transaction is blocked, these balances never update. Therefore, they are Category C and strictly forbidden from inference.
 
-## Feature Audit Table
+## 6. API Validation Mechanism
+The `TransactionRequest` Pydantic model sets `newbalanceOrig` and `newbalanceDest` as Optional. The FastAPI route `predict` parses the payload but the ML `preprocessing.py` explicitly ignores them. The system now returns traceability metadata: `realtime_feature_validation` and `feature_schema_version`.
 
-| Feature | Current Use | Availability Stage | Real-Time Suitable? | Reason | Keep/Remove for Pre-Auth Model |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `step` (hour_of_day) | Behavioral timing | CATEGORY A | ✅ Yes | The timestamp/hour is known when the transaction is initiated. | Keep |
-| `type` | Transaction method | CATEGORY A | ✅ Yes | The method (TRANSFER, CASH_OUT) is inherently known at initiation. | Keep |
-| `amount` | Transaction value | CATEGORY A | ✅ Yes | The requested amount is the primary payload of the authorization request. | Keep |
-| `oldbalanceOrg` | Sender balance prior | CATEGORY A | ✅ Yes | The bank knows the sender's current balance before processing the request. | Keep |
-| `oldbalanceDest`| Receiver balance prior | CATEGORY A | ✅ Yes | The receiving bank knows the destination's current balance before clearing. | Keep |
-| `newbalanceOrig`| Sender balance after | **CATEGORY C** | ❌ No | This is the result of the transaction. Including it leaks the outcome to the model. | **Remove** |
-| `newbalanceDest`| Receiver balance after | **CATEGORY C** | ❌ No | This is the result of the transaction. Including it leaks the outcome. | **Remove** |
-| `errorBalanceOrig`| Engineered balance mismatch | **CATEGORY C** | ❌ No | Mathematically derived using `newbalanceOrig`. Represents a post-transaction accounting error. | **Remove** |
-| `errorBalanceDest`| Engineered balance mismatch | **CATEGORY C** | ❌ No | Mathematically derived using `newbalanceDest`. Represents a post-transaction accounting error. | **Remove** |
-
-## Conclusion
-The current full-feature model heavily relies on `newbalanceOrig`, `newbalanceDest`, and their derived error features (`errorBalanceOrig`, `errorBalanceDest`) to achieve high accuracy. 
-
-However, in a true pre-authorization pipeline, these features constitute **Target/Future Leakage**. A separate **Pre-Authorization Model** must be trained omitting these Category C features to accurately reflect the real-world predictive power of the system prior to payment clearance.
+## 7. Research Implications
+Future research must expand the dataset beyond PaySim to include Behavioral and Device-based features (see `real_time_data_requirements.md`).
