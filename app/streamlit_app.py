@@ -146,6 +146,7 @@ page = st.sidebar.radio("NAVIGATION", [
     "⌂ Dashboard", 
     "◈ Analyze Transaction", 
     "▣ Batch Analysis", 
+    "■ Case Management",
     "◉ Analytics", 
     "◌ Model Intelligence", 
     "◍ System Monitoring",
@@ -211,6 +212,10 @@ elif page == "◈ Analyze Transaction":
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
     with st.form("tx_form"):
         st.markdown("<h4 style='color: rgba(0,255,65,0.8);'>[01] TRANSACTION DATA</h4>", unsafe_allow_html=True)
+        c0a, c0b = st.columns(2)
+        with c0a: nameOrig = st.text_input("SENDER_ID (nameOrig)", value="C12345")
+        with c0b: nameDest = st.text_input("RECIPIENT_ID (nameDest)", value="M67890")
+        
         c1, c2 = st.columns(2)
         with c1: step = st.number_input("TIME_STEP_HR", min_value=1, value=1)
         with c2: type_ = st.selectbox("TX_TYPE", ["TRANSFER", "CASH_OUT", "CASH_IN", "DEBIT", "PAYMENT"])
@@ -220,10 +225,8 @@ elif page == "◈ Analyze Transaction":
         with c3:
             amount = st.number_input("TX_AMOUNT", min_value=0.0, value=1500.0)
             oldbalanceOrg = st.number_input("ORG_OLD_BALANCE", min_value=0.0, value=5000.0)
-            newbalanceOrig = st.number_input("ORG_NEW_BALANCE", min_value=0.0, value=3500.0)
         with c4:
             oldbalanceDest = st.number_input("DST_OLD_BALANCE", min_value=0.0, value=0.0)
-            newbalanceDest = st.number_input("DST_NEW_BALANCE", min_value=0.0, value=1500.0)
             
         st.markdown("<br>", unsafe_allow_html=True)
         submitted = st.form_submit_button("[ RUN_AI_SCAN ]")
@@ -234,15 +237,17 @@ elif page == "◈ Analyze Transaction":
             st.error("ERR: MAINFRAME OFFLINE")
         else:
             payload = {
+                "transaction_id": f"TX_{int(time.time())}",
+                "nameOrig": nameOrig, "nameDest": nameDest,
                 "step": step, "type": type_, "amount": amount,
-                "oldbalanceOrg": oldbalanceOrg, "newbalanceOrig": newbalanceOrig,
-                "oldbalanceDest": oldbalanceDest, "newbalanceDest": newbalanceDest
+                "oldbalanceOrg": oldbalanceOrg,
+                "oldbalanceDest": oldbalanceDest
             }
             
             sc = st.empty()
-            for stage in ["[INIT_ANALYSIS]", "[VALIDATING_TX]", "[PROCESSING_FEATURES]", "[RUN_ML_MODEL]", "[CALC_RISK]", "[GEN_DECISION]"]:
+            for stage in ["[INIT_ANALYSIS]", "[BEHAVIORAL_SCAN]", "[RUN_ML_MODEL]", "[DECISION_FUSION]"]:
                 sc.markdown(f"<div class='loading-text'>> {stage} █</div>", unsafe_allow_html=True)
-                time.sleep(0.3)
+                time.sleep(0.2)
             sc.empty()
             
             try:
@@ -255,14 +260,37 @@ elif page == "◈ Analyze Transaction":
                 
                 c1, c2, c3 = st.columns(3)
                 p, r, a, prob = res['prediction'], res['risk_level'], res['recommended_action'], res['fraud_probability']
+                conf = res.get('decision_confidence', 'UNKNOWN')
+                pol_ver = res.get('policy_version', 'v1.0')
+                reasons = res.get('decision_reasons', [])
+                
                 col = "#ff003c" if p == "Fraud" else "#00ff41"
                 
                 c1.markdown(f"<h4>PREDICTION</h4><h1 style='color: {col}; text-shadow: 0 0 10px {col};'>{p}</h1>", unsafe_allow_html=True)
-                c2.markdown(f"<h4>RISK_SCORE</h4><h1 style='color: {col};'>{prob*100:.1f}%</h1>", unsafe_allow_html=True)
+                c2.markdown(f"<h4>ML RISK SCORE</h4><h1 style='color: {col};'>{prob*100:.1f}%</h1>", unsafe_allow_html=True)
                 
                 rc = "#ff003c" if r=="High" else ("#ffeb3b" if r=="Medium" else "#00ff41")
                 c3.markdown(f"<h4>ACTION</h4><h1 style='color: {rc}; text-shadow: 0 0 10px {rc};'>{a}</h1><h4 style='color:{rc};'>RISK: {r}</h4>", unsafe_allow_html=True)
                 st.markdown("</div>", unsafe_allow_html=True)
+                
+                st.markdown("### > DECISION CONTEXT")
+                st.info(f"**Confidence**: {conf} | **Policy**: {pol_ver}")
+                for reason in reasons:
+                    st.write(f"- {reason}")
+                
+                if a == "VERIFY":
+                    st.warning("⚠️ STEP-UP AUTHENTICATION REQUIRED")
+                    otp = st.text_input("Enter 6-digit OTP to proceed (Test: 123456):")
+                    if st.button("Submit OTP"):
+                        verify_url = API_URL.replace('/predict', f'/verify_transaction/{payload["transaction_id"]}')
+                        v_res = requests.post(verify_url, json={"otp": otp})
+                        if v_res.status_code == 200:
+                            v_data = v_res.json()
+                            if v_data["verification_status"] == "SUCCESS":
+                                st.success("✅ VERIFICATION SUCCESSFUL. TRANSACTION APPROVED.")
+                            else:
+                                st.error("❌ VERIFICATION FAILED. TRANSACTION BLOCKED.")
+
                 
                 EXPLAIN_URL = API_URL.replace('/predict', '/explain')
                 with st.expander("[ VIEW_AI_INSIGHTS ]", expanded=True):
@@ -330,6 +358,97 @@ elif page == "▣ Batch Analysis":
         except Exception as e:
             st.error(f"ERR: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
+
+elif page == "■ Case Management":
+    api_status = render_header("FRAUD_ALERTS_AND_CASES", "Investigate flagged transactions.")
+    
+    if not api_status:
+        st.error("API OFFLINE. Cannot fetch cases.")
+    else:
+        try:
+            # Simple UI to filter cases
+            c1, c2 = st.columns(2)
+            with c1:
+                status_filter = st.selectbox("STATUS FILTER", ["ALL", "OPEN", "UNDER_REVIEW", "RESOLVED"])
+            with c2:
+                severity_filter = st.selectbox("SEVERITY FILTER", ["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW"])
+            
+            url = f"{API_URL.replace('/predict', '/cases')}?"
+            if status_filter != "ALL": url += f"status={status_filter}&"
+            if severity_filter != "ALL": url += f"severity={severity_filter}&"
+            
+            res = requests.get(url)
+            res.raise_for_status()
+            cases = res.json()
+            
+            if not cases:
+                st.info("> NO CASES FOUND MATCHING FILTERS.")
+            else:
+                st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+                # Render Table
+                html = "<table style='width: 100%; text-align: left; border-collapse: collapse;'>"
+                html += "<tr style='border-bottom: 1px solid rgba(0,255,65,0.3); color: rgba(0,255,65,0.7);'><th>CASE_ID</th><th>TX_ID</th><th>SEVERITY</th><th>STATUS</th><th>DECISION</th><th>DATE</th></tr>"
+                for case in cases:
+                    sev_class = 'danger' if case['severity'] in ['CRITICAL', 'HIGH'] else 'warning'
+                    html += f"<tr style='border-bottom: 1px solid rgba(0,255,65,0.1);'>"
+                    html += f"<td style='padding: 12px 0;'>{case['id']}</td>"
+                    html += f"<td>{case['transaction_id']}</td>"
+                    html += f"<td><span class='badge badge-{sev_class}'>{case['severity']}</span></td>"
+                    html += f"<td>{case['status']}</td>"
+                    html += f"<td>{case['decision']}</td>"
+                    html += f"<td>{case['created_at'][:19].replace('T', ' ')}</td>"
+                    html += "</tr>"
+                html += "</table></div>"
+                st.markdown(html, unsafe_allow_html=True)
+                
+                # Case Investigation view
+                st.markdown("### > INVESTIGATE_CASE")
+                selected_case = st.selectbox("SELECT CASE ID TO INVESTIGATE", [c['id'] for c in cases])
+                if selected_case:
+                    case_detail_url = API_URL.replace('/predict', f'/cases/{selected_case}')
+                    detail_res = requests.get(case_detail_url)
+                    
+                    if detail_res.status_code == 200:
+                        detail = detail_res.json()
+                        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+                        cc1, cc2 = st.columns(2)
+                        with cc1:
+                            st.write(f"**Transaction ID:** {detail['transaction_id']}")
+                            st.write(f"**ML Probability:** {detail['fraud_probability']*100:.1f}%")
+                            st.write(f"**Decision:** {detail['decision']} ({detail['decision_confidence']})")
+                        with cc2:
+                            st.write(f"**Current Status:** {detail['status']}")
+                            st.write(f"**Resolution:** {detail['resolution'] or 'N/A'}")
+                        
+                        st.markdown("#### ANALYST NOTES")
+                        st.text(detail['analyst_notes'] or "No notes yet.")
+                        
+                        st.markdown("---")
+                        st.markdown("#### UPDATE STATUS (Analyst Action)")
+                        with st.form(f"update_form_{selected_case}"):
+                            new_status = st.selectbox("New Status", ["OPEN", "UNDER_REVIEW", "RESOLVED"], index=["OPEN", "UNDER_REVIEW", "RESOLVED"].index(detail['status']))
+                            resolution = st.selectbox("Resolution (If Resolving)", ["", "CONFIRMED_FRAUD", "FALSE_POSITIVE", "VERIFIED_LEGITIMATE"])
+                            notes = st.text_area("Analyst Notes")
+                            
+                            if st.form_submit_button("SUBMIT UPDATE"):
+                                payload = {"status": new_status, "analyst_id": "Analyst_01"}
+                                if resolution: payload["resolution"] = resolution
+                                if notes: payload["notes"] = notes
+                                
+                                update_res = requests.patch(f"{case_detail_url}/status", json=payload)
+                                if update_res.status_code == 200:
+                                    st.success("CASE UPDATED SUCCESSFULLY. REFRESHING...")
+                                else:
+                                    st.error(f"FAILED TO UPDATE: {update_res.text}")
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        with st.expander("VIEW CASE HISTORY"):
+                            for h in detail.get('history', []):
+                                st.write(f"**{h['timestamp'][:19].replace('T', ' ')}** | {h['action']} by {h['analyst_id']}")
+                                if h['notes']:
+                                    st.write(f"> {h['notes']}")
+        except Exception as e:
+            st.error(f"ERR: {e}")
 
 elif page == "◉ Analytics":
     api_status = render_header("DATA_INTELLIGENCE", "Interactive data visualizations.")

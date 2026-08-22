@@ -35,5 +35,34 @@ class FraudAlert(Base):
     audit_log_id = Column(Integer)
     risk_level = Column(String)
     fraud_probability = Column(Float)
-    recommended_action = Column(String)
     model_version = Column(String)
+
+class FraudCase(Base):
+    __tablename__ = "fraud_cases"
+
+    id = Column(String, primary_key=True, index=True) # e.g., CASE_12345
+    transaction_id = Column(String, index=True)
+    audit_log_id = Column(Integer)
+    severity = Column(String) # CRITICAL, HIGH, MEDIUM, LOW
+    status = Column(String, default="OPEN") # OPEN, UNDER_REVIEW, RESOLVED
+    resolution = Column(String, nullable=True) # CONFIRMED_FRAUD, FALSE_POSITIVE, VERIFIED_LEGITIMATE
+    analyst_notes = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Context snapshots
+    fraud_probability = Column(Float)
+    decision = Column(String)
+    decision_confidence = Column(String)
+
+class CaseHistory(Base):
+    __tablename__ = "case_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(String, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    action = Column(String) # STATUS_CHANGED, NOTE_ADDED
+    previous_status = Column(String, nullable=True)
+    new_status = Column(String, nullable=True)
+    analyst_id = Column(String, default="system")
+    notes = Column(String, nullable=True)

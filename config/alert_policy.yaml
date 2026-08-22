@@ -1,0 +1,23 @@
+# Alert Generation Policy
+policy_version: "v1.0"
+
+alert_mapping:
+  # When decision engine outputs BLOCK
+  BLOCK:
+    create_case: true
+    severity: "CRITICAL"
+  
+  # When decision engine outputs VERIFY
+  VERIFY:
+    create_case: true
+    severity: "MEDIUM"
+  
+  # When decision engine outputs APPROVE
+  APPROVE:
+    create_case: false
+    severity: "NONE"
+
+deduplication:
+  # Prevent duplicate cases for the same transaction ID
+  enabled: true
+  fallback_to_audit_id: true # if transaction_id is TX_000

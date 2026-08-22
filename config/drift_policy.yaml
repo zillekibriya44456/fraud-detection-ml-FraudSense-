@@ -1,0 +1,34 @@
+# Model Monitoring and Drift Policy
+policy_version: "v1.0"
+
+monitoring:
+  # How many recent transactions to consider for drift calculations
+  window_size: 1000
+  
+  # Protect against statistical noise in small samples
+  min_sample_size: 100
+
+drift_thresholds:
+  numerical_psi:
+    low: 0.1
+    medium: 0.2
+    high: 0.25
+    
+  categorical_psi:
+    low: 0.1
+    medium: 0.2
+    high: 0.25
+
+features_monitored:
+  numerical:
+    - amount
+    - oldbalanceOrg
+    - oldbalanceDest
+  categorical:
+    - type
+
+retraining_recommendation:
+  # Thresholds that trigger a retraining recommendation
+  high_feature_drift_count: 2
+  precision_drop_threshold: 0.15 # 15% drop
+  min_labelled_sample_size: 50

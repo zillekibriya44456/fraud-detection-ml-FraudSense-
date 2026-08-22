@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.features.realtime_features import engineer_realtime_features
 from src.decision_engine import decision_engine
+from src.behavioral.engine import behavioral_engine
 
 # Load Pre-Authorization Models
 MODEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models/pre_authorization'))
@@ -58,15 +59,32 @@ class FraudDetectionService:
         df_engineered = engineer_realtime_features(df)
         X_processed = self.preprocessor.transform(df_engineered)
         prob = float(self.model.predict_proba(X_processed)[0][1])
-        prediction_label = "Fraud" if prob >= decision_engine.medium_threshold else "Legitimate"
+        prediction_label = "Fraud" if prob >= decision_engine.thresholds.get("ml_medium_risk", 0.40) else "Legitimate"
         
         latency = (time.time() - start_time) * 1000.0
         
+        # Assess Behavioral Risk (Must be before record_transaction)
+        behavior = behavioral_engine.assess_transaction(transaction_data)
+
         # Get risk decision
-        decision = decision_engine.assess_risk(prob)
-        decision["prediction"] = prediction_label
+        decision = decision_engine.assess_risk(
+            fraud_probability=prob,
+            amount=transaction_data.get("amount", 0.0),
+            behavioral_signal=behavior["behavioral_risk_signal"],
+            history_status=behavior["behavioral_history_status"]
+        )
+        
+        # Risk Fusion Layer
+        decision["prediction"] = "Fraud" if prob >= 0.5 else "Legitimate"
         decision["inference_latency_ms"] = latency
         decision["model_version"] = "v2_pre_auth"
+        decision["feature_schema_version"] = "v1.0"
+        decision["realtime_feature_validation"] = "passed"
+        decision["behavioral_history_status"] = behavior["behavioral_history_status"]
+        decision["behavioral_risk_signal"] = behavior["behavioral_risk_signal"]
+        
+        # Record transaction AFTER prediction to prevent self-leakage
+        behavioral_engine.record_transaction(transaction_data)
         
         return decision
 
@@ -81,12 +99,26 @@ class FraudDetectionService:
         probs = self.model.predict_proba(X_processed)[:, 1]
         
         results = []
-        for i, prob in enumerate(probs):
+        for i, (prob, transaction_data) in enumerate(zip(probs, transactions_data)):
             prob = float(prob)
-            decision = decision_engine.assess_risk(prob)
-            decision["prediction"] = "Fraud" if prob >= decision_engine.medium_threshold else "Legitimate"
+            
+            behavior = behavioral_engine.assess_transaction(transaction_data)
+            
+            decision = decision_engine.assess_risk(
+                fraud_probability=prob,
+                amount=transaction_data.get("amount", 0.0),
+                behavioral_signal=behavior["behavioral_risk_signal"],
+                history_status=behavior["behavioral_history_status"]
+            )
+            decision["prediction"] = "Fraud" if prob >= 0.5 else "Legitimate"
             decision["inference_latency_ms"] = ((time.time() - start_time) * 1000.0) / len(transactions_data)
             decision["model_version"] = "v2_pre_auth"
+            decision["feature_schema_version"] = "v1.0"
+            decision["realtime_feature_validation"] = "passed"
+            decision["behavioral_history_status"] = behavior["behavioral_history_status"]
+            decision["behavioral_risk_signal"] = behavior["behavioral_risk_signal"]
+            
+            behavioral_engine.record_transaction(transaction_data)
             results.append(decision)
             
         return results

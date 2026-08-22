@@ -1,0 +1,55 @@
+# Feature Availability Configuration
+# Defines which features are permitted during the real-time pre-authorization phase.
+
+schema_version: "v1.0"
+
+categories:
+  PRE_TRANSACTION:
+    description: "Features available entirely before the transaction begins."
+  DURING_AUTHORIZATION:
+    description: "Features available during the API request while the transaction is being processed."
+  POST_TRANSACTION:
+    description: "Features only known after the transaction has successfully cleared."
+
+features:
+  - feature_name: "step"
+    availability_stage: "PRE_TRANSACTION"
+    realtime_safe: true
+    model_usage: "Used (time representation)"
+    description: "The time step in hours."
+
+  - feature_name: "type"
+    availability_stage: "PRE_TRANSACTION"
+    realtime_safe: true
+    model_usage: "Used (transaction channel)"
+    description: "The type of transaction (e.g. TRANSFER, PAYMENT)."
+
+  - feature_name: "amount"
+    availability_stage: "DURING_AUTHORIZATION"
+    realtime_safe: true
+    model_usage: "Used"
+    description: "The requested transaction amount."
+
+  - feature_name: "oldbalanceOrg"
+    availability_stage: "PRE_TRANSACTION"
+    realtime_safe: true
+    model_usage: "Used"
+    description: "The sender's account balance before processing the transaction."
+
+  - feature_name: "oldbalanceDest"
+    availability_stage: "PRE_TRANSACTION"
+    realtime_safe: true
+    model_usage: "Used"
+    description: "The receiver's account balance before processing the transaction."
+
+  - feature_name: "newbalanceOrig"
+    availability_stage: "POST_TRANSACTION"
+    realtime_safe: false
+    model_usage: "Dropped"
+    description: "The sender's account balance after processing. Excluded to prevent data leakage."
+
+  - feature_name: "newbalanceDest"
+    availability_stage: "POST_TRANSACTION"
+    realtime_safe: false
+    model_usage: "Dropped"
+    description: "The receiver's account balance after processing. Excluded to prevent data leakage."

@@ -15,7 +15,26 @@ def predict_fraud(transaction: TransactionRequest, db: Session = Depends(get_db)
 
     try:
         data = transaction.model_dump()
-        result = fraud_service.predict(data)
+        try:
+            result = fraud_service.predict(data)
+        except Exception as model_err:
+            import logging
+            logging.error(f"Model Inference Failed: {str(model_err)}")
+            result = {
+                "prediction": "SYSTEM_ERROR",
+                "fraud_probability": 1.0, # Highest possible risk to be safe
+                "risk_level": "UNKNOWN",
+                "recommended_action": "REVIEW_REQUIRED",
+                "decision_policy": "FAIL_SAFE_POLICY",
+                "decision_confidence": "LIMITED_CONTEXT",
+                "decision_reasons": ["CRITICAL: Fraud Engine Unavailable. Forcing Review."],
+                "model_version": "unknown",
+                "inference_latency_ms": 0.0,
+                "feature_schema_version": "v1.0",
+                "realtime_feature_validation": "failed",
+                "behavioral_history_status": "NONE",
+                "behavioral_risk_signal": 0.0
+            }
 
         audit_entry = TransactionAuditLog(
             step=data["step"], type=data["type"], amount=data["amount"],
@@ -30,26 +49,24 @@ def predict_fraud(transaction: TransactionRequest, db: Session = Depends(get_db)
         db.commit()
         db.refresh(audit_entry)
         
-        # Fraud Alert generation
-        from database.models import FraudAlert
-        if result["risk_level"] == "HIGH":
-            alert = FraudAlert(
-                transaction_id=data.get("transaction_id", "TX_000"),
-                audit_log_id=audit_entry.id,
-                risk_level=result["risk_level"],
-                fraud_probability=result["fraud_probability"],
-                recommended_action=result["recommended_action"],
-                model_version=result["model_version"]
-            )
-            db.add(alert)
-            db.commit()
+        # Phase 5: Automatic Case Creation
+        from src.case_manager import case_manager
+        case_id = case_manager.evaluate_and_create_case(
+            transaction_data=data,
+            decision_data=result,
+            audit_log_id=audit_entry.id,
+            db=db
+        )
 
         result["audit_id"] = audit_entry.id
+        result["case_id"] = case_id
         return TransactionResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging
+        logging.error(f"Critical Transaction Failure: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 from api.schemas import TransactionBatchRequest, TransactionBatchResponse
 
@@ -81,28 +98,35 @@ def predict_fraud_batch(batch_request: TransactionBatchRequest, db: Session = De
         db.add_all(audit_entries)
         db.commit()
         
+        from src.case_manager import case_manager
+        
         for entry, data, result in zip(audit_entries, transactions, predictions):
             db.refresh(entry)
             result["audit_id"] = entry.id
-            if result["risk_level"] == "HIGH":
-                alerts.append(FraudAlert(
-                    transaction_id=data.get("transaction_id", "TX_000"),
-                    audit_log_id=entry.id, risk_level=result["risk_level"],
-                    fraud_probability=result["fraud_probability"],
-                    recommended_action=result["recommended_action"],
-                    model_version=result["model_version"]
-                ))
-        
-        if alerts:
-            db.add_all(alerts)
-            db.commit()
+            
+            case_id = case_manager.evaluate_and_create_case(
+                transaction_data=data,
+                decision_data=result,
+                audit_log_id=entry.id,
+                db=db
+            )
+            result["case_id"] = case_id
             
         return TransactionBatchResponse(results=predictions, total_processed=len(predictions))
         
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+from api.schemas import ExplainResponse, VerifyRequest
+@router.post("/verify_transaction/{transaction_id}")
+def verify_transaction(transaction_id: str, request: VerifyRequest):
+    """
+    Mock endpoint simulating a Step-Up Authentication workflow (OTP).
+    If a transaction was routed to VERIFY, the client must successfully call this to APPROVE.
+    """
+    if request.otp == "123456":
+        return {"transaction_id": transaction_id, "verification_status": "SUCCESS", "final_decision": "APPROVE"}
+    else:
+        return {"transaction_id": transaction_id, "verification_status": "FAILED", "final_decision": "BLOCK"}
 
 from api.schemas import ExplainResponse
 @router.post("/explain", response_model=ExplainResponse)
