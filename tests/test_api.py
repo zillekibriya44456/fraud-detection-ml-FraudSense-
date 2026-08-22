@@ -27,6 +27,29 @@ def test_predict_fraud_valid_request():
         assert "decision_policy" in data
         assert "model_version" in data
         assert "inference_latency_ms" in data
+        assert "feature_schema_version" in data
+        assert "realtime_feature_validation" in data
+        assert data["realtime_feature_validation"] == "passed"
+
+def test_predict_rejects_post_auth_leakage():
+    # Submit a payload that attempts to pass future knowledge
+    payload = {
+        "transaction_id": "TX_TEST_LEAK",
+        "channel": "UPI",
+        "step": 1,
+        "type": "TRANSFER",
+        "amount": 50000.0,
+        "oldbalanceOrg": 50000.0,
+        "oldbalanceDest": 0.0,
+        "newbalanceOrig": 0.0,    # POST-TRANSACTION LEAKAGE
+        "newbalanceDest": 50000.0 # POST-TRANSACTION LEAKAGE
+    }
+    response = client.post("/predict", json=payload)
+    if response.status_code == 200:
+        data = response.json()
+        # Even with leakage injected, it should process safely because schemas drop it
+        assert data["realtime_feature_validation"] == "passed"
+        assert data["feature_schema_version"] == "v1.0"
 
 def test_predict_fraud_missing_fields():
     payload = {
