@@ -1,0 +1,10 @@
+{
+    "best_pr_auc": 0.9962516839318423,
+    "best_params": {
+        "n_estimators": 126,
+        "max_depth": 5,
+        "learning_rate": 0.0677671238187077,
+        "subsample": 0.9036819393132569,
+        "colsample_bytree": 0.8691323646994898
+    }
+}

@@ -1,10 +1,30 @@
-# Basic future-ready Docker Compose structure
 version: '3.8'
+
 services:
   api:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
     environment:
-      - APP_ENV=development
-    # Note: Database service is planned infrastructure and will be added here
+      - DB_URL=sqlite:///./data/audit_log.db
+    volumes:
+      - fraud_data:/app/data
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000/predict
+      - HEALTH_URL=http://api:8000/health
+    depends_on:
+      - api
+    volumes:
+      - fraud_data:/app/data
+
+volumes:
+  fraud_data:

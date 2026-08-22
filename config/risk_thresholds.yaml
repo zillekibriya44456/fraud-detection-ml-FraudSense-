@@ -1,0 +1,22 @@
+# Risk Threshold Configuration
+# These thresholds dictate the mapping between ML Fraud Probability (0.0 to 1.0)
+# and the resulting Risk Level / Action.
+# They are configured based on validation PR-AUC curves to balance precision and recall.
+
+thresholds:
+  high_risk_threshold: 0.85
+  medium_risk_threshold: 0.40
+
+policies:
+  high_risk:
+    level: "HIGH"
+    action: "BLOCK"
+    description: "Probability exceeds the high-risk threshold. Immediate block."
+  medium_risk:
+    level: "MEDIUM"
+    action: "VERIFY"
+    description: "Probability is elevated. Step-up verification (e.g. OTP) required."
+  low_risk:
+    level: "LOW"
+    action: "APPROVE"
+    description: "Nominal transaction pattern. Proceed with authorization."

@@ -1,0 +1,126 @@
+{
+    "paysim": {
+        "rows": 6362620,
+        "cols": 11,
+        "fraud_count": 8213,
+        "legit_count": 6354407,
+        "fraud_pct": 0.1291,
+        "total_missing": 0,
+        "id_cardinality": {
+            "nameOrig": 6353307,
+            "nameDest": 2722362
+        },
+        "flagged_fraud_rule_count": 16,
+        "fraud_types": [
+            "CASH_OUT",
+            "TRANSFER"
+        ],
+        "leakage_columns": [
+            "nameOrig",
+            "nameDest",
+            "isFlaggedFraud"
+        ],
+        "leakage_risk": "LOW (identified and documented)"
+    },
+    "ulb": {
+        "rows": 284807,
+        "cols": 31,
+        "fraud_count": 492,
+        "legit_count": 284315,
+        "fraud_pct": 0.1727,
+        "total_missing": 0,
+        "duplicate_rows": 1081,
+        "interpretable_features": [
+            "Time",
+            "Amount"
+        ],
+        "anonymised_features": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V7",
+            "V8",
+            "V9",
+            "V10",
+            "V11",
+            "V12",
+            "V13",
+            "V14",
+            "V15",
+            "V16",
+            "V17",
+            "V18",
+            "V19",
+            "V20",
+            "V21",
+            "V22",
+            "V23",
+            "V24",
+            "V25",
+            "V26",
+            "V27",
+            "V28"
+        ],
+        "explainability_possible": false,
+        "duplicate_handling": "Remove from TRAIN set only during preprocessing"
+    },
+    "ieee_cis": {
+        "tx_rows": 590540,
+        "tx_cols": 394,
+        "id_rows": 144233,
+        "id_cols": 41,
+        "fraud_count": 20663,
+        "legit_count": 569877,
+        "fraud_pct": 3.499,
+        "column_groups": {
+            "V_cols": 339,
+            "C_cols": 14,
+            "D_cols": 15,
+            "M_cols": 9
+        },
+        "columns_with_missing_in_sample": 319,
+        "join_key": "TransactionID",
+        "data_engineering_complexity": "HIGH"
+    },
+    "leakage_register": [
+        {
+            "Dataset": "PaySim",
+            "Column": "nameOrig",
+            "Type": "Identifier leakage",
+            "Action": "DROP before training"
+        },
+        {
+            "Dataset": "PaySim",
+            "Column": "nameDest",
+            "Type": "Identifier leakage",
+            "Action": "DROP before training"
+        },
+        {
+            "Dataset": "PaySim",
+            "Column": "isFlaggedFraud",
+            "Type": "Rule-based derivation (not ML)",
+            "Action": "DROP before training"
+        },
+        {
+            "Dataset": "All",
+            "Column": "Target column",
+            "Type": "Target leakage",
+            "Action": "Use as y only, never as X feature"
+        },
+        {
+            "Dataset": "IEEE-CIS",
+            "Column": "TransactionID",
+            "Type": "Identifier",
+            "Action": "DROP or use as join key only"
+        },
+        {
+            "Dataset": "IEEE-CIS",
+            "Column": "TransactionDT",
+            "Type": "Timestamp \u2014 potential temporal leakage",
+            "Action": "Transform to relative time features, not raw value"
+        }
+    ]
+}

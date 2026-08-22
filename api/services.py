@@ -4,18 +4,19 @@ import pandas as pd
 import os
 import sys
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
 # Ensure src modules can be imported
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.feature_engineering import engineer_features
+from src.features.realtime_features import engineer_realtime_features
+from src.decision_engine import decision_engine
 
-# Paths to models
-MODEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models'))
+# Load Pre-Authorization Models
+MODEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models/pre_authorization'))
 MODEL_PATH = os.path.join(MODEL_DIR, 'xgboost_fraud_model.json')
 PREPROCESSOR_PATH = os.path.join(MODEL_DIR, 'preprocessor.joblib')
-
 
 class FraudDetectionService:
     def __init__(self):
@@ -25,19 +26,8 @@ class FraudDetectionService:
         self.load_artifacts()
 
     def load_artifacts(self):
-        """
-        Attempt to load trained model artifacts.
-        If artifacts are missing (e.g. during development before training),
-        the service initialises in a degraded state rather than crashing.
-        """
         if not os.path.exists(MODEL_PATH) or not os.path.exists(PREPROCESSOR_PATH):
-            logger.warning(
-                "Model artifacts not found at '%s' and '%s'. "
-                "The /predict endpoint will return HTTP 503 until a model is trained. "
-                "Run the training notebooks (05–10) to produce model artifacts.",
-                MODEL_PATH,
-                PREPROCESSOR_PATH,
-            )
+            logger.warning("Model artifacts not found. API in degraded state.")
             self._model_loaded = False
             return
 
@@ -46,58 +36,67 @@ class FraudDetectionService:
             self.model.load_model(MODEL_PATH)
             self.preprocessor = joblib.load(PREPROCESSOR_PATH)
             self._model_loaded = True
-            logger.info("Model artifacts loaded successfully from '%s'.", MODEL_DIR)
+            logger.info("Real-Time Pre-Auth model artifacts loaded successfully.")
         except Exception as exc:
             logger.error("Failed to load model artifacts: %s", exc)
             self._model_loaded = False
 
     def is_ready(self) -> bool:
-        """Returns True only when model and preprocessor are both loaded."""
         return self._model_loaded
 
     def predict(self, transaction_data: dict) -> dict:
-        """
-        Run fraud detection inference on a single transaction.
-        Raises RuntimeError if model artifacts have not been loaded.
-        """
         if not self._model_loaded:
-            raise RuntimeError(
-                "Model is not loaded. Train and save the model first "
-                "(run notebooks 05–10 and ensure artifacts exist in models/)."
-            )
+            raise RuntimeError("Model is not loaded.")
 
-        # 1. Convert to DataFrame
-        df = pd.DataFrame([transaction_data])
-
-        # 2. Feature Engineering
-        df_engineered = engineer_features(df)
-
-        # 3. Preprocessing
+        start_time = time.time()
+        
+        # We must exclude post-transaction features if they are passed
+        safe_keys = ['step', 'type', 'amount', 'oldbalanceOrg', 'oldbalanceDest']
+        safe_data = {k: transaction_data.get(k, 0) for k in safe_keys}
+        
+        df = pd.DataFrame([safe_data])
+        df_engineered = engineer_realtime_features(df)
         X_processed = self.preprocessor.transform(df_engineered)
-
-        # 4. Predict
         prob = float(self.model.predict_proba(X_processed)[0][1])
+        prediction_label = "Fraud" if prob >= decision_engine.medium_threshold else "Legitimate"
+        
+        latency = (time.time() - start_time) * 1000.0
+        
+        # Get risk decision
+        decision = decision_engine.assess_risk(prob)
+        decision["prediction"] = prediction_label
+        decision["inference_latency_ms"] = latency
+        decision["model_version"] = "v2_pre_auth"
+        
+        return decision
 
-        # 5. Risk Assessment
-        # NOTE: These thresholds are provisional placeholders.
-        # Final thresholds must be determined by experiments in notebooks 05–10.
-        if prob > 0.8:
-            risk_level = "High"
-            is_fraud = True
-        elif prob > 0.4:
-            risk_level = "Medium"
-            is_fraud = False
-        else:
-            risk_level = "Low"
-            is_fraud = False
+    def predict_batch(self, transactions_data: list[dict]) -> list[dict]:
+        if not self._model_loaded:
+            raise RuntimeError("Model is not loaded.")
+            
+        start_time = time.time()
+        df = pd.DataFrame(transactions_data)
+        df_engineered = engineer_realtime_features(df)
+        X_processed = self.preprocessor.transform(df_engineered)
+        probs = self.model.predict_proba(X_processed)[:, 1]
+        
+        results = []
+        for i, prob in enumerate(probs):
+            prob = float(prob)
+            decision = decision_engine.assess_risk(prob)
+            decision["prediction"] = "Fraud" if prob >= decision_engine.medium_threshold else "Legitimate"
+            decision["inference_latency_ms"] = ((time.time() - start_time) * 1000.0) / len(transactions_data)
+            decision["model_version"] = "v2_pre_auth"
+            results.append(decision)
+            
+        return results
 
-        return {
-            "fraud_probability": prob,
-            "risk_level": risk_level,
-            "is_fraud": is_fraud,
-        }
+    def explain(self, transaction_data: dict) -> list[dict]:
+        from src.explainability import SHAPExplainer
+        if not self._model_loaded:
+            raise RuntimeError("Model is not loaded.")
+        explainer = SHAPExplainer(self.model, self.preprocessor)
+        return explainer.explain_transaction(transaction_data)
 
-
-# Instantiate a global service to be used by the router
 fraud_service = FraudDetectionService()
 

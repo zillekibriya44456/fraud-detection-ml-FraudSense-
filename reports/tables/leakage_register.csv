@@ -1,0 +1,7 @@
+Dataset,Column,Type,Action
+PaySim,nameOrig,Identifier leakage,DROP before training
+PaySim,nameDest,Identifier leakage,DROP before training
+PaySim,isFlaggedFraud,Rule-based derivation (not ML),DROP before training
+All,Target column,Target leakage,"Use as y only, never as X feature"
+IEEE-CIS,TransactionID,Identifier,DROP or use as join key only
+IEEE-CIS,TransactionDT,Timestamp — potential temporal leakage,"Transform to relative time features, not raw value"
