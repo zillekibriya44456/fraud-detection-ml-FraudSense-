@@ -12,3 +12,5 @@ frontend/dist/
 notebooks/
 reports/
 tests/
+dataset/
+*.zip

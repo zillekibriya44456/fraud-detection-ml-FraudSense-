@@ -5,11 +5,8 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
-    environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=sqlite:///./data/audit_log.db
-      - MODEL_DIR=/app/models/pre_authorization
-      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+    env_file:
+      - .env
     volumes:
       - fraud_data:/app/data
 

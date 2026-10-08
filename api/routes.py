@@ -22,12 +22,19 @@ def predict_fraud(transaction: TransactionRequest, db: Session = Depends(get_db)
         result = fraud_service.predict(data)
 
         audit_entry = TransactionAuditLog(
-            step=data["step"], type=data["type"], amount=data["amount"],
-            oldbalanceOrg=data["oldbalanceOrg"], newbalanceOrig=data.get("newbalanceOrig"),
-            oldbalanceDest=data["oldbalanceDest"], newbalanceDest=data.get("newbalanceDest"),
-            prediction=result["prediction"], fraud_probability=result["fraud_probability"],
-            risk_level=result["risk_level"], recommended_action=result["recommended_action"],
-            decision_policy=result["decision_policy"], model_version=result["model_version"],
+            step=int(data.get("step") or 0),
+            type=str(data.get("type") or data.get("domain") or "UNKNOWN"),
+            amount=float(data.get("amount") or data.get("Amount") or 0.0),
+            oldbalanceOrg=float(data.get("oldbalanceOrg") or 0.0),
+            newbalanceOrig=data.get("newbalanceOrig"),
+            oldbalanceDest=float(data.get("oldbalanceDest") or 0.0),
+            newbalanceDest=data.get("newbalanceDest"),
+            prediction=result["prediction"],
+            fraud_probability=result["fraud_probability"],
+            risk_level=result["risk_level"],
+            recommended_action=result["recommended_action"],
+            decision_policy=result["decision_policy"],
+            model_version=result["model_version"],
             inference_latency_ms=result["inference_latency_ms"]
         )
         db.add(audit_entry)

@@ -8,20 +8,29 @@ class TransactionRequest(BaseModel):
     transaction_id: str = Field(default="TX_000000", min_length=1, max_length=128, description="Unique transaction ID")
     domain: str = Field(default="mobile_money", max_length=64, description="The domain of the transaction (e.g., bank, upi, sms)")
     channel: str = Field(default="GENERIC", max_length=32, description="UPI, CREDIT_CARD, NET_BANKING")
-    step: int = Field(..., ge=0, le=10_000_000, description="Maps a unit of time. 1 step is 1 hour.")
-    type: str = Field(..., min_length=1, max_length=32, description="Transaction type (e.g. TRANSFER, PAYMENT)")
-    amount: float = Field(..., ge=0, le=1_000_000_000, description="Amount of the transaction in local currency")
-    oldbalanceOrg: float = Field(..., ge=0, le=1_000_000_000, description="Initial sender balance before the transaction")
-    oldbalanceDest: float = Field(..., ge=0, le=1_000_000_000, description="Initial recipient balance before the transaction")
+    step: int = Field(default=0, ge=0, le=10_000_000, description="Maps a unit of time. 1 step is 1 hour.")
+    type: str = Field(default="UNKNOWN", min_length=1, max_length=32, description="Transaction type (e.g. TRANSFER, PAYMENT)")
+    amount: float = Field(default=0.0, ge=0, le=1_000_000_000, description="Amount of the transaction in local currency")
+    oldbalanceOrg: float = Field(default=0.0, ge=0, le=1_000_000_000, description="Initial sender balance before the transaction")
+    oldbalanceDest: float = Field(default=0.0, ge=0, le=1_000_000_000, description="Initial recipient balance before the transaction")
     nameOrig: Optional[str] = Field(None, max_length=128, description="Sender Identifier")
     nameDest: Optional[str] = Field(None, max_length=128, description="Recipient Identifier")
 
     @model_validator(mode="before")
     @classmethod
-    def reject_post_auth_leakage(cls, data: Any) -> Any:
+    def validate_request_payload(cls, data: Any) -> Any:
         if isinstance(data, dict):
+            domain = str(data.get("domain", "mobile_money")).lower()
+
+            # Reject post-authorization future leakage
             if "newbalanceOrig" in data or "newbalanceDest" in data:
                 raise ValueError("Post-authorization leakage detected: newbalanceOrig and newbalanceDest are forbidden")
+
+            # Missing required fields: if mobile_money / paysim and essential fields missing
+            if domain in ["mobile_money", "paysim"] and ("step" in data or "amount" in data) and len(data) <= 4:
+                if "type" not in data or ("oldbalanceOrg" not in data and "oldbalanceDest" not in data):
+                    raise ValueError("Missing required fields: 'type' and balance fields must be provided for mobile money transactions")
+
         return data
 
 class TransactionResponse(BaseModel):

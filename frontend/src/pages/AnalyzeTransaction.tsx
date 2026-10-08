@@ -30,33 +30,73 @@ function riskClass(risk: string) {
 const DOMAIN_TEMPLATES: Record<string, any> = {
   paysim: {
     domain: "paysim",
-    step: 1, type: "TRANSFER", amount: 150000.0,
-    oldbalanceOrg: 150000.0, newbalanceOrig: 0.0,
-    oldbalanceDest: 0.0, newbalanceDest: 0.0
+    step: 1,
+    type: "TRANSFER",
+    amount: 150000.0,
+    oldbalanceOrg: 150000.0,
+    oldbalanceDest: 0.0
   },
   bank: {
     domain: "bank",
-    income: 0.5, name_email_similarity: 0.8,
-    velocity_6h: 100, velocity_24h: 200, velocity_4w: 300,
-    bank_branch_count_8w: 5, date_of_birth_distinct_emails_4w: 1,
-    credit_risk_score: 150, email_is_free: 1, phone_home_valid: 1,
-    phone_mobile_valid: 1, bank_months_count: 12, has_other_cards: 0,
-    proposed_credit_limit: 1000, foreign_request: 0, session_length_in_minutes: 5,
-    keep_alive_session: 1, device_os: 0, device_distinct_emails_8w: 1, month: 5
+    income: 0.5,
+    name_email_similarity: 0.8,
+    velocity_6h: 100,
+    velocity_24h: 200,
+    velocity_4w: 300,
+    bank_branch_count_8w: 5,
+    date_of_birth_distinct_emails_4w: 1,
+    credit_risk_score: 150,
+    email_is_free: 1,
+    phone_home_valid: 1,
+    phone_mobile_valid: 1,
+    bank_months_count: 12,
+    has_other_cards: 0,
+    proposed_credit_limit: 1000,
+    foreign_request: 0,
+    session_length_in_minutes: 5,
+    keep_alive_session: 1,
+    device_os: 0,
+    device_distinct_emails_8w: 1,
+    month: 5
   },
   upi: {
-    domain: "upi", amount: 150.0, merchant_type: 1,
-    is_international: 0, time_of_day: 14, velocity_1h: 2
+    domain: "upi",
+    amount: 15000.0,
+    transaction_type: "P2P",
+    merchant_category: "Shopping",
+    sender_bank: "HDFC",
+    receiver_bank: "SBI",
+    hour_of_day: 14,
+    day_of_week: "Monday",
+    sender_age_group: "26-35",
+    receiver_age_group: "26-35"
   },
   card: {
-    domain: "card", V1: -1.3, V2: 0.5, V3: 1.2, V4: 0.1, V5: -0.8,
-    V6: 0.3, V7: 0.1, V8: 0.2, V9: 0.5, V10: 0.9, V11: -0.5, V12: -1.0, 
-    Amount: 12.50
+    domain: "card",
+    Amount: 125.50,
+    Time: 3600,
+    V1: -1.3,
+    V2: 0.5,
+    V3: 1.2,
+    V4: 0.1,
+    V5: -0.8
   },
-  bitcoin: { domain: "bitcoin" },
-  url_phishing: { domain: "url_phishing", url_length: 54, has_ip: 0, num_subdomains: 3 },
-  sms: { domain: "sms", length: 140, has_url: 1, spam_words: 2 },
-  email: { domain: "email", length: 1500, has_attachments: 1, sender_mismatch: 1 }
+  bitcoin: {
+    domain: "bitcoin",
+    time_step: 20
+  },
+  url_phishing: {
+    domain: "url_phishing",
+    url: "http://secure-login-chase-update.example/login"
+  },
+  sms: {
+    domain: "sms",
+    text: "URGENT: Your account is blocked. Verify KYC immediately at http://evil-bank-login.com"
+  },
+  email: {
+    domain: "email",
+    text: "URGENT: Your bank account is suspended. Verify credentials immediately to restore access."
+  }
 };
 
 const AnalyzeTransaction: React.FC = () => {

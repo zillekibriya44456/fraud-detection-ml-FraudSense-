@@ -772,6 +772,94 @@ class DomainRiskEngine:
             "explanations": explanations
         }
 
+    def predict_email(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Specialized inference for Email Phishing text classification.
+        """
+        domain_key = "email"
+        if domain_key not in self._models:
+            raise RuntimeError("Email Phishing model is not loaded in risk engine.")
+
+        model = self._models[domain_key]
+        bundle = self._preprocessors[domain_key]
+        threshold = self._thresholds.get(domain_key, 0.40)
+
+        vectorizer = bundle["vectorizer"]
+        scaler = bundle["scaler"]
+
+        raw_text = str(payload.get("text", payload.get("body", payload.get("subject", ""))))
+        if not raw_text:
+            return {
+                "model": "email_phishing_detector",
+                "domain": "EMAIL",
+                "prediction": 0,
+                "label": "HAM_LEGITIMATE",
+                "fraud_probability": 0.0,
+                "risk_score": 0,
+                "risk_level": "LOW",
+                "threshold": threshold,
+                "explanations": ["Empty email text payload."]
+            }
+
+        import re
+        from scipy.sparse import hstack
+        URL_REGEX = re.compile(r'https?://\S+|www\.\S+|\.com/\S+|\.net/\S+', re.IGNORECASE)
+        URGENT_REGEX = re.compile(r'\b(urgent|immediately|suspended|suspend|deactivated|action required|warning|threat|notice)\b', re.IGNORECASE)
+        FINANCIAL_REGEX = re.compile(r'\b(invoice|account|bank|payment|wire|transfer|funds|dollars|billing|payroll)\b', re.IGNORECASE)
+        CRED_REGEX = re.compile(r'\b(password|login|verify|credential|otp|pin|security code|authenticate|reset)\b', re.IGNORECASE)
+
+        t_len = max(1, len(raw_text))
+        meta_dict = {
+            "char_length": len(raw_text),
+            "word_count": len(raw_text.split()),
+            "has_url": 1 if URL_REGEX.search(raw_text) else 0,
+            "has_urgent": 1 if URGENT_REGEX.search(raw_text) else 0,
+            "has_financial": 1 if FINANCIAL_REGEX.search(raw_text) else 0,
+            "has_cred": 1 if CRED_REGEX.search(raw_text) else 0,
+            "upper_ratio": float(sum(1 for c in raw_text if c.isupper()) / t_len),
+            "digit_ratio": float(sum(1 for c in raw_text if c.isdigit()) / t_len)
+        }
+        meta_df = pd.DataFrame([meta_dict])
+
+        X_tfidf = vectorizer.transform([raw_text])
+        X_meta = scaler.transform(meta_df)
+        X_proc = hstack([X_tfidf, X_meta]).tocsr()
+
+        prob = float(model.predict_proba(X_proc)[0][1])
+        prediction = 1 if prob >= threshold else 0
+        risk_score = int(round(prob * 100))
+
+        if risk_score >= 75:
+            risk_level = "CRITICAL"
+        elif risk_score >= 50:
+            risk_level = "HIGH"
+        elif risk_score >= 25:
+            risk_level = "MEDIUM"
+        else:
+            risk_level = "LOW"
+
+        explanations = []
+        if meta_dict["has_urgent"] == 1:
+            explanations.append("Urgent or threatening call-to-action detected.")
+        if meta_dict["has_cred"] == 1:
+            explanations.append("Suspicious credential or verification request.")
+        if meta_dict["has_url"] == 1:
+            explanations.append("Contains embedded link.")
+        if meta_dict["has_financial"] == 1:
+            explanations.append("Payment or billing context identified.")
+
+        return {
+            "model": "email_phishing_detector",
+            "domain": "EMAIL",
+            "prediction": prediction,
+            "label": "PHISHING" if prediction == 1 else "LEGITIMATE",
+            "fraud_probability": round(prob, 4),
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "threshold": threshold,
+            "explanations": explanations
+        }
+
     def predict(self, domain: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
         d = domain.lower()
         if d == "upi":
@@ -782,6 +870,8 @@ class DomainRiskEngine:
             return self.predict_url(input_data)
         elif d in ["sms", "text", "smishing"]:
             return self.predict_sms(input_data)
+        elif d in ["email", "email_phishing", "phishing_email"]:
+            return self.predict_email(input_data)
         elif d in ["bank", "bank_account", "account_fraud"]:
             return self.predict_bank(input_data)
         elif d in ["paysim", "mobile_money"]:
