@@ -5,8 +5,6 @@ from database.database import Base, engine, get_db
 from database.models import TransactionAuditLog, FraudCase
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import patch
-from datetime import datetime
-import json
 
 # Use a test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_monitoring.db"
@@ -18,6 +16,9 @@ client = TestClient(app)
 def setup_db():
     Base.metadata.create_all(bind=engine)
     db = next(get_db())
+    db.query(FraudCase).delete()
+    db.query(TransactionAuditLog).delete()
+    db.commit()
     
     # Insert 150 fake logs to bypass INSUFFICIENT_DATA
     for i in range(150):
@@ -44,7 +45,9 @@ def setup_db():
         
     db.commit()
     yield
-    Base.metadata.drop_all(bind=engine)
+    db.query(FraudCase).delete()
+    db.query(TransactionAuditLog).delete()
+    db.commit()
 
 def test_monitoring_registry():
     resp = client.get("/monitoring/registry")

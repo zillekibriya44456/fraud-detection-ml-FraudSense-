@@ -1,4 +1,3 @@
-import pandas as pd
 from src.features.realtime_features import engineer_realtime_features
 
 def engineer_full_features(df):

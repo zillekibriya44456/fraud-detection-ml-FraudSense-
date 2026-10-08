@@ -4,10 +4,11 @@ from typing import List
 from database.database import get_db
 from database.models import FraudCase, CaseHistory
 from api.schemas import CaseResponse, CaseStatusUpdate
+from api.security import require_api_key
 
 router = APIRouter(prefix="/cases", tags=["Case Management"])
 
-@router.get("/", response_model=List[CaseResponse])
+@router.get("/", response_model=List[CaseResponse], dependencies=[Depends(require_api_key)])
 def get_cases(status: str = None, severity: str = None, db: Session = Depends(get_db)):
     query = db.query(FraudCase)
     if status:
@@ -18,7 +19,7 @@ def get_cases(status: str = None, severity: str = None, db: Session = Depends(ge
     cases = query.order_by(FraudCase.created_at.desc()).limit(100).all()
     return cases
 
-@router.get("/{case_id}", response_model=CaseResponse)
+@router.get("/{case_id}", response_model=CaseResponse, dependencies=[Depends(require_api_key)])
 def get_case(case_id: str, db: Session = Depends(get_db)):
     case = db.query(FraudCase).filter(FraudCase.id == case_id).first()
     if not case:
@@ -30,7 +31,7 @@ def get_case(case_id: str, db: Session = Depends(get_db)):
     case_resp.history = history
     return case_resp
 
-@router.patch("/{case_id}/status", response_model=CaseResponse)
+@router.patch("/{case_id}/status", response_model=CaseResponse, dependencies=[Depends(require_api_key)])
 def update_case_status(case_id: str, update: CaseStatusUpdate, db: Session = Depends(get_db)):
     case = db.query(FraudCase).filter(FraudCase.id == case_id).first()
     if not case:

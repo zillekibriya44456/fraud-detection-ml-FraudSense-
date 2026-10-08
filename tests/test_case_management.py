@@ -1,12 +1,14 @@
 import pytest
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 from api.main import app
-from database.database import Base, engine, get_db
+from database.database import Base, engine
 from sqlalchemy.orm import sessionmaker
 
-# Use a test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_case_management.db"
-engine_test = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from api.services import fraud_service
+from database.database import Base, engine
+from sqlalchemy.orm import sessionmaker
 
 client = TestClient(app)
 
@@ -14,20 +16,19 @@ client = TestClient(app)
 def setup_db():
     Base.metadata.create_all(bind=engine)
     yield
-    Base.metadata.drop_all(bind=engine)
-
-from unittest.mock import patch
+    # Keep database tables ready for subsequent test suites
+    Base.metadata.create_all(bind=engine)
 
 def test_case_creation_on_block(setup_db):
     payload = {
         "transaction_id": "TX_TEST_BLOCK_01",
         "step": 1, "type": "TRANSFER", "amount": 200000.0,
-        "oldbalanceOrg": 250000.0, "newbalanceOrig": 50000.0,
-        "oldbalanceDest": 0.0, "newbalanceDest": 0.0,
+        "oldbalanceOrg": 250000.0,
+        "oldbalanceDest": 0.0,
         "nameOrig": "C123", "nameDest": "C456"
     }
     
-    with patch("api.services.fraud_service.model.predict_proba") as mock_predict:
+    with patch.object(fraud_service.model, "predict_proba") as mock_predict:
         import numpy as np
         # Force a high probability
         mock_predict.return_value = np.array([[0.05, 0.95]])
@@ -54,12 +55,12 @@ def test_case_deduplication(setup_db):
     payload = {
         "transaction_id": "TX_TEST_DEDUP_01",
         "step": 1, "type": "TRANSFER", "amount": 200000.0,
-        "oldbalanceOrg": 250000.0, "newbalanceOrig": 50000.0,
-        "oldbalanceDest": 0.0, "newbalanceDest": 0.0,
+        "oldbalanceOrg": 250000.0,
+        "oldbalanceDest": 0.0,
         "nameOrig": "C123", "nameDest": "C456"
     }
     
-    with patch("api.services.fraud_service.model.predict_proba") as mock_predict:
+    with patch.object(fraud_service.model, "predict_proba") as mock_predict:
         import numpy as np
         mock_predict.return_value = np.array([[0.05, 0.95]])
         

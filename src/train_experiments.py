@@ -3,7 +3,6 @@ import sys
 import json
 import joblib
 import pandas as pd
-import numpy as np
 import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression

@@ -156,8 +156,16 @@ page = st.sidebar.radio("NAVIGATION", [
 api_stat = check_api_health()
 st.sidebar.markdown("<hr>", unsafe_allow_html=True)
 st.sidebar.markdown("<div style='font-size: 0.8rem; color: #94a3b8; font-weight: bold;'>SYSTEM CONNECTIONS</div>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<div style='margin-top: 10px; font-family: \"JetBrains Mono\", monospace; font-size: 0.9rem;'>{'<span style=\"color:#00e676\">●</span> API CONNECTED' if api_stat else '<span style=\"color:#ff1744\">●</span> API DISCONNECTED'}</div>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<div style='margin-top: 5px; font-family: \"JetBrains Mono\", monospace; font-size: 0.9rem;'>{'<span style=\"color:#00e676\">●</span> ML MODEL READY' if api_stat else '<span style=\"color:#ff1744\">●</span> ML MODEL OFFLINE'}</div>", unsafe_allow_html=True)
+api_connected_html = "<span style='color:#00e676'>●</span> API CONNECTED"
+api_disconnected_html = "<span style='color:#ff1744'>●</span> API DISCONNECTED"
+ml_ready_html = "<span style='color:#00e676'>●</span> ML MODEL READY"
+ml_offline_html = "<span style='color:#ff1744'>●</span> ML MODEL OFFLINE"
+
+api_status_text = api_connected_html if api_stat else api_disconnected_html
+ml_status_text = ml_ready_html if api_stat else ml_offline_html
+
+st.sidebar.markdown(f"<div style='margin-top: 10px; font-family: \"JetBrains Mono\", monospace; font-size: 0.9rem;'>{api_status_text}</div>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<div style='margin-top: 5px; font-family: \"JetBrains Mono\", monospace; font-size: 0.9rem;'>{ml_status_text}</div>", unsafe_allow_html=True)
 
 # --- PAGES ---
 if page == "⌂ Dashboard":

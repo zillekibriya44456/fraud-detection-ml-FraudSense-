@@ -5,8 +5,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies needed for XGBoost and building packages
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,14 +18,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Ensure the database directory exists
-RUN mkdir -p data
-
-# Initialize the database (this runs the script that creates tables)
-RUN python -c "from database.database import engine; from database.models import Base; Base.metadata.create_all(bind=engine)"
+# Run without root and allow a persistent database/model volume to be mounted.
+RUN useradd --create-home --uid 10001 appuser && mkdir -p data && chown -R appuser:appuser /app
+USER appuser
 
 # Expose port
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD python -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=3)"
 
 # Run the FastAPI server
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

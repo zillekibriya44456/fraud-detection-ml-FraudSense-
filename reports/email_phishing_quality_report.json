@@ -1,0 +1,12 @@
+{
+  "dataset_name": "phishing_email",
+  "domain": "EMAIL",
+  "row_count": 82486,
+  "total_missing_values": 0,
+  "duplicate_emails": 408,
+  "post_dedup_rows": 82078,
+  "phishing_count": 42891,
+  "legitimate_count": 39595,
+  "phishing_percentage": 51.99791479766264,
+  "legitimate_percentage": 48.00208520233737
+}

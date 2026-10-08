@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import FraudCase, TransactionAuditLog
+from database.models import FraudCase
 import logging
 
 logger = logging.getLogger(__name__)

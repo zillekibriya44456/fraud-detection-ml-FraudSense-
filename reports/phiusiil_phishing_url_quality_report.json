@@ -1,0 +1,15 @@
+{
+  "dataset_name": "PhiUSIIL_Phishing_URL_Dataset",
+  "domain": "URL_PHISHING",
+  "row_count": 235795,
+  "column_count": 56,
+  "total_missing_values": 0,
+  "missing_percentage": 0.0,
+  "exact_duplicates": 0,
+  "url_duplicates_removed": 425,
+  "post_clean_rows": 235370,
+  "phishing_count": 134850,
+  "legitimate_count": 100945,
+  "phishing_percentage": 57.189507835195826,
+  "legitimate_percentage": 42.810492164804174
+}

@@ -1,6 +1,5 @@
 import shap
 import pandas as pd
-import numpy as np
 from src.features.realtime_features import engineer_realtime_features
 
 class SHAPExplainer:
@@ -30,7 +29,7 @@ class SHAPExplainer:
         try:
             cat_features = self.preprocessor.named_transformers_['cat'].named_steps['onehot'].get_feature_names_out(['type'])
             feature_names = numeric_features + list(cat_features)
-        except:
+        except (AttributeError, KeyError):
             feature_names = [f"Feature_{i}" for i in range(X_processed.shape[1])]
 
         shap_values = self.explainer.shap_values(X_processed)

@@ -1,0 +1,17 @@
+{
+  "dataset_name": "creditcard",
+  "domain": "CARD",
+  "row_count": 284807,
+  "column_count": 31,
+  "total_missing_values": 0,
+  "missing_percentage": 0.0,
+  "duplicate_rows": 1081,
+  "duplicate_percentage": 0.379555277784605,
+  "post_dedup_rows": 283726,
+  "post_dedup_frauds": 473,
+  "post_dedup_legit": 283253,
+  "fraud_count": 492,
+  "legitimate_count": 284315,
+  "fraud_percentage": 0.1727485630620034,
+  "legitimate_percentage": 99.82725143693798
+}

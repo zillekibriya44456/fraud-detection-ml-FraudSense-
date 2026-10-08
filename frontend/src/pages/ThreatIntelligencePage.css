@@ -1,0 +1,46 @@
+.threat-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.threat-feed-card {
+  padding: 24px;
+}
+
+.threat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.threat-item-card {
+  background: rgba(7, 9, 14, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.th-meta {
+  display: flex;
+  gap: 20px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.indicator-tags {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ind-tag {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--accent-red);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}

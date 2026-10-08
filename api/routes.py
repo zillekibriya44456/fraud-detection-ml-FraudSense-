@@ -1,6 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from api.schemas import TransactionRequest, TransactionResponse
+from api.schemas import TransactionRequest, TransactionResponse, TransactionBatchRequest, TransactionBatchResponse, ExplainResponse
+from api.security import require_api_key
 from api.services import fraud_service
 from database.database import get_db
 from database.models import TransactionAuditLog
@@ -8,33 +12,14 @@ from database.models import TransactionAuditLog
 router = APIRouter()
 
 
-@router.post("/predict", response_model=TransactionResponse)
+@router.post("/predict", response_model=TransactionResponse, dependencies=[Depends(require_api_key)])
 def predict_fraud(transaction: TransactionRequest, db: Session = Depends(get_db)):
     if not fraud_service.is_ready():
         raise HTTPException(status_code=503, detail="Model not loaded.")
 
     try:
         data = transaction.model_dump()
-        try:
-            result = fraud_service.predict(data)
-        except Exception as model_err:
-            import logging
-            logging.error(f"Model Inference Failed: {str(model_err)}")
-            result = {
-                "prediction": "SYSTEM_ERROR",
-                "fraud_probability": 1.0, # Highest possible risk to be safe
-                "risk_level": "UNKNOWN",
-                "recommended_action": "REVIEW_REQUIRED",
-                "decision_policy": "FAIL_SAFE_POLICY",
-                "decision_confidence": "LIMITED_CONTEXT",
-                "decision_reasons": ["CRITICAL: Fraud Engine Unavailable. Forcing Review."],
-                "model_version": "unknown",
-                "inference_latency_ms": 0.0,
-                "feature_schema_version": "v1.0",
-                "realtime_feature_validation": "failed",
-                "behavioral_history_status": "NONE",
-                "behavioral_risk_signal": 0.0
-            }
+        result = fraud_service.predict(data)
 
         audit_entry = TransactionAuditLog(
             step=data["step"], type=data["type"], amount=data["amount"],
@@ -63,14 +48,13 @@ def predict_fraud(transaction: TransactionRequest, db: Session = Depends(get_db)
         return TransactionResponse(**result)
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         import logging
-        logging.error(f"Critical Transaction Failure: {str(e)}")
+        logging.exception("Prediction failed")
+        db.rollback()
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-from api.schemas import TransactionBatchRequest, TransactionBatchResponse
-
-@router.post("/predict_batch", response_model=TransactionBatchResponse)
+@router.post("/predict_batch", response_model=TransactionBatchResponse, dependencies=[Depends(require_api_key)])
 def predict_fraud_batch(batch_request: TransactionBatchRequest, db: Session = Depends(get_db)):
     if not fraud_service.is_ready():
         raise HTTPException(status_code=503, detail="Model not loaded.")
@@ -80,8 +64,6 @@ def predict_fraud_batch(batch_request: TransactionBatchRequest, db: Session = De
         predictions = fraud_service.predict_batch(transactions)
         
         audit_entries = []
-        alerts = []
-        from database.models import FraudAlert
         
         for data, result in zip(transactions, predictions):
             entry = TransactionAuditLog(
@@ -116,20 +98,14 @@ def predict_fraud_batch(batch_request: TransactionBatchRequest, db: Session = De
         
     except HTTPException:
         raise
-from api.schemas import ExplainResponse, VerifyRequest
-@router.post("/verify_transaction/{transaction_id}")
-def verify_transaction(transaction_id: str, request: VerifyRequest):
-    """
-    Mock endpoint simulating a Step-Up Authentication workflow (OTP).
-    If a transaction was routed to VERIFY, the client must successfully call this to APPROVE.
-    """
-    if request.otp == "123456":
-        return {"transaction_id": transaction_id, "verification_status": "SUCCESS", "final_decision": "APPROVE"}
-    else:
-        return {"transaction_id": transaction_id, "verification_status": "FAILED", "final_decision": "BLOCK"}
+    except Exception:
+        import logging
+        logging.exception("Batch prediction failed")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-from api.schemas import ExplainResponse
-@router.post("/explain", response_model=ExplainResponse)
+
+@router.post("/explain", response_model=ExplainResponse, dependencies=[Depends(require_api_key)])
 def explain_fraud(transaction: TransactionRequest):
     if not fraud_service.is_ready():
         raise HTTPException(status_code=503, detail="Model not loaded.")
@@ -140,5 +116,44 @@ def explain_fraud(transaction: TransactionRequest):
             transaction_id=data.get("transaction_id", "TX_000"),
             top_factors=top_factors
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        import logging
+        logging.exception("Explanation generation failed")
+        raise HTTPException(status_code=500, detail="Explanation unavailable")
+
+
+@router.get("/dashboard/summary")
+def dashboard_summary(db: Session = Depends(get_db)):
+    """Return database-derived dashboard data; never synthesize activity."""
+    total = db.query(func.count(TransactionAuditLog.id)).scalar() or 0
+    fraud = db.query(func.count(TransactionAuditLog.id)).filter(TransactionAuditLog.prediction == "Fraud").scalar() or 0
+    legitimate = db.query(func.count(TransactionAuditLog.id)).filter(TransactionAuditLog.prediction == "Legitimate").scalar() or 0
+    distribution = {
+        level: count
+        for level, count in db.query(TransactionAuditLog.risk_level, func.count(TransactionAuditLog.id))
+        .group_by(TransactionAuditLog.risk_level).all()
+        if level
+    }
+
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=24)
+    recent_logs = db.query(TransactionAuditLog).filter(TransactionAuditLog.timestamp >= cutoff).order_by(TransactionAuditLog.timestamp.asc()).all()
+    buckets: dict[str, dict[str, int]] = {}
+    for log in recent_logs:
+        timestamp = log.timestamp or datetime.now(timezone.utc).replace(tzinfo=None)
+        key = timestamp.strftime("%H:00")
+        bucket = buckets.setdefault(key, {"time": key, "legitimate": 0, "fraud": 0, "suspicious": 0})
+        if log.prediction == "Fraud":
+            bucket["fraud"] += 1
+        elif log.risk_level in {"MEDIUM", "HIGH", "CRITICAL"}:
+            bucket["suspicious"] += 1
+        else:
+            bucket["legitimate"] += 1
+
+    return {
+        "transactions_analyzed": total,
+        "fraud_detected": fraud,
+        "legitimate_transactions": legitimate,
+        "fraud_rate": round((fraud / total * 100) if total else 0, 2),
+        "risk_distribution": distribution,
+        "timeline": list(buckets.values()),
+    }

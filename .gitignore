@@ -22,6 +22,9 @@ models/*
 !models/README.md
 !models/.gitkeep
 
+# Large datasets
+dataset/
+
 # SQLite audit database (local only)
 *.db
 

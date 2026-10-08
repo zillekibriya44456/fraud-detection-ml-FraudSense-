@@ -1,21 +1,28 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Optional, Any
+
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 class TransactionRequest(BaseModel):
-    transaction_id: str = Field(default="TX_000000", description="Unique transaction ID")
-    channel: str = Field(default="GENERIC", description="UPI, CREDIT_CARD, NET_BANKING")
-    step: int = Field(..., description="Maps a unit of time. 1 step is 1 hour.")
-    type: str = Field(..., description="Transaction type (e.g. TRANSFER, PAYMENT)")
-    amount: float = Field(..., description="Amount of the transaction in local currency")
-    oldbalanceOrg: float = Field(..., description="Initial sender balance before the transaction")
-    oldbalanceDest: float = Field(..., description="Initial recipient balance before the transaction")
-    nameOrig: Optional[str] = Field(None, description="Sender Identifier")
-    nameDest: Optional[str] = Field(None, description="Recipient Identifier")
-    
-    # We no longer accept newbalanceOrig and newbalanceDest as they are post-transaction features.
-    # To not break batch processing from CSVs that contain it, we can allow them as Optional.
-    newbalanceOrig: Optional[float] = None
-    newbalanceDest: Optional[float] = None
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
+    transaction_id: str = Field(default="TX_000000", min_length=1, max_length=128, description="Unique transaction ID")
+    domain: str = Field(default="mobile_money", max_length=64, description="The domain of the transaction (e.g., bank, upi, sms)")
+    channel: str = Field(default="GENERIC", max_length=32, description="UPI, CREDIT_CARD, NET_BANKING")
+    step: int = Field(..., ge=0, le=10_000_000, description="Maps a unit of time. 1 step is 1 hour.")
+    type: str = Field(..., min_length=1, max_length=32, description="Transaction type (e.g. TRANSFER, PAYMENT)")
+    amount: float = Field(..., ge=0, le=1_000_000_000, description="Amount of the transaction in local currency")
+    oldbalanceOrg: float = Field(..., ge=0, le=1_000_000_000, description="Initial sender balance before the transaction")
+    oldbalanceDest: float = Field(..., ge=0, le=1_000_000_000, description="Initial recipient balance before the transaction")
+    nameOrig: Optional[str] = Field(None, max_length=128, description="Sender Identifier")
+    nameDest: Optional[str] = Field(None, max_length=128, description="Recipient Identifier")
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_post_auth_leakage(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "newbalanceOrig" in data or "newbalanceDest" in data:
+                raise ValueError("Post-authorization leakage detected: newbalanceOrig and newbalanceDest are forbidden")
+        return data
 
 class TransactionResponse(BaseModel):
     prediction: str = Field(..., description="Fraud or Legitimate")
@@ -41,10 +48,6 @@ class TransactionBatchRequest(BaseModel):
 class TransactionBatchResponse(BaseModel):
     results: List[TransactionResponse]
     total_processed: int
-
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 
 class VerifyRequest(BaseModel):
     otp: str = Field(..., description="One-Time Password for Verification")

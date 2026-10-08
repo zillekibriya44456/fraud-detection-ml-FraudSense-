@@ -1,0 +1,10 @@
+dataset_name,file_name,format,size_mb,domain,rows,cols,target_column,fraud_count,non_fraud_count,fraud_ratio,missing_values,duplicates
+upi_transactions_2024,upi_transactions_2024.csv,CSV,28.430737495422363,UPI,250000,17,fraud_flag,480,249520,0.00192,0,0
+creditcard,creditcard.csv,CSV,143.8415069580078,CARD,284807,31,Class,492,284315,0.001727485630620034,0,1081
+paysim_mobile_money,PS_20174392719_1491204439457_log.csv,CSV,470.67144680023193,MOBILE_MONEY,6362620,11,isFraud,8213,6354407,0.001290820448180152,0,0
+phiusiil_phishing_url,PhiUSIIL_Phishing_URL_Dataset.csv,CSV,54.2205286026001,URL_PHISHING,235795,56,label,134850,100945,0.5718950783519583,0,0
+bank_account_fraud_base,Bank transactions/Base.csv,CSV,203.54054927825928,BANKING,1000000,32,fraud_bool,11029,988971,0.011029,0,0
+sms_spam_collection,(SMS)sms+spam+collection/SMSSpamCollection,TSV/TXT,0.4557676315307617,SMS,5572,2,label,747,4825,0.13406317300789664,0,403
+email_phishing,Email 2/phishing_email.csv,CSV,101.66506099700928,EMAIL,82486,2,label,42891,39595,0.5199791479766264,0,408
+elliptic_bitcoin_dataset,elliptic_bitcoin_dataset,"CSV (classes, edgelist, features)",665.1492109298706,BITCOIN,203769,167,class,4545,42019,0.09760759384932566,157205,0
+ibm_aml_graph_datasets,Graph datasets.zip,"ZIP (18 files: HI-Small, LI-Small, HI-Medium, LI-Medium, HI-Large, LI-Large)",7797.402780532837,AML / GRAPH,5000000,11,Is Laundering,-1,-1,-1.0,0,0

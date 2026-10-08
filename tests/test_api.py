@@ -45,11 +45,13 @@ def test_predict_rejects_post_auth_leakage():
         "newbalanceDest": 50000.0 # POST-TRANSACTION LEAKAGE
     }
     response = client.post("/predict", json=payload)
-    if response.status_code == 200:
-        data = response.json()
-        # Even with leakage injected, it should process safely because schemas drop it
-        assert data["realtime_feature_validation"] == "passed"
-        assert data["feature_schema_version"] == "v1.0"
+    assert response.status_code == 422
+
+def test_dashboard_summary_has_no_synthetic_activity():
+    response = client.get("/dashboard/summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert {"transactions_analyzed", "fraud_detected", "legitimate_transactions", "fraud_rate", "risk_distribution", "timeline"} <= data.keys()
 
 def test_predict_fraud_missing_fields():
     payload = {

@@ -1,0 +1,12 @@
+{
+  "dataset_name": "SMSSpamCollection",
+  "domain": "SMS",
+  "row_count": 5572,
+  "total_missing_values": 0,
+  "duplicate_messages": 403,
+  "post_dedup_rows": 5169,
+  "spam_count": 747,
+  "ham_count": 4825,
+  "spam_percentage": 13.406317300789663,
+  "ham_percentage": 86.59368269921033
+}

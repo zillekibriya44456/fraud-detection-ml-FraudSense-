@@ -1,6 +1,5 @@
 import yaml
 import os
-import time
 import uuid
 from sqlalchemy.orm import Session
 from database.models import FraudCase, CaseHistory

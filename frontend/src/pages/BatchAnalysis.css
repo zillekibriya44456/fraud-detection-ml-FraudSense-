@@ -1,0 +1,65 @@
+.batch-page { display: flex; flex-direction: column; gap: 20px; animation: fadeUp 0.35s ease; }
+
+.drop-zone {
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border: 2px dashed rgba(255,255,255,0.1);
+  transition: all 0.2s;
+}
+.drop-zone:hover, .drop-zone.dragging {
+  border-color: rgba(56,189,248,0.5);
+  background: rgba(56,189,248,0.05);
+}
+.upload-icon { color: var(--accent-blue); opacity: 0.7; }
+.drop-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.drop-hint { font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+.file-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+.file-meta { display: flex; align-items: center; gap: 12px; }
+.file-name { font-weight: 600; font-family: var(--font-mono); }
+.file-detail { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+.file-actions { display: flex; gap: 10px; align-items: center; }
+
+.error-panel { display: flex; align-items: center; gap: 10px; padding: 14px 20px; color: var(--accent-amber); font-size: 0.85rem; border-color: rgba(245,158,11,0.3); }
+
+.progress-panel { overflow: hidden; }
+.progress-bar-track { height: 4px; background: rgba(255,255,255,0.05); }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); transition: width 0.4s ease; }
+
+.batch-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.stat-card { padding: 20px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.stat-value { font-size: 2rem; font-weight: 700; font-family: var(--font-mono); }
+.stat-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); }
+
+.btn-secondary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.05);
+  border: var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+
+.btn-analyze.small { padding: 8px 16px; font-size: 0.8rem; }
+.btn-secondary.small { padding: 6px 12px; font-size: 0.75rem; }
+
+.red-text { color: var(--accent-red); }
+.green-text { color: var(--accent-green); }
+.text-muted { color: var(--text-muted); }
+.mono { font-family: var(--font-mono); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) { .batch-stats { grid-template-columns: repeat(2, 1fr); } }

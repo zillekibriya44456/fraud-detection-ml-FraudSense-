@@ -1,0 +1,60 @@
+.monitoring-page { display: flex; flex-direction: column; gap: 20px; animation: fadeUp 0.35s ease; }
+
+.refresh-btn { margin-left: auto; }
+
+.services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+.svc-card { padding: 18px 20px; }
+.svc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.svc-icon { color: var(--text-muted); }
+.svc-online .svc-icon { color: var(--accent-green); }
+.svc-offline .svc-icon { color: var(--accent-red); }
+.svc-degraded .svc-icon { color: var(--accent-amber); }
+
+.svc-name { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text-primary); margin-bottom: 4px; }
+.svc-detail { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+.svc-online { border-color: rgba(16, 185, 129, 0.2); }
+.svc-offline { border-color: rgba(239, 68, 68, 0.2); }
+.svc-degraded { border-color: rgba(245, 158, 11, 0.2); }
+
+.monitoring-content { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+.side-stats { display: flex; flex-direction: column; gap: 12px; }
+.stat-item { padding: 16px 18px; }
+.si-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 6px; }
+.si-value { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+.si-value.mono { font-family: var(--font-mono); }
+
+.log-container { max-height: 320px; overflow-y: auto; padding: 4px 0; }
+
+.log-entry {
+  display: grid;
+  grid-template-columns: 90px 56px 1fr;
+  gap: 12px;
+  padding: 7px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.log-entry:hover { background: rgba(255,255,255,0.02); }
+
+.log-time { color: var(--text-muted); }
+.log-level { font-weight: 700; }
+.log-msg { color: var(--text-secondary); }
+
+.mono-data { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+
+.green-text { color: var(--accent-green); }
+.red-text   { color: var(--accent-red); }
+.amber-text { color: var(--accent-amber); }
+.blue-text  { color: var(--accent-blue); }
+.mono { font-family: var(--font-mono); }
+
+.live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); animation: pulse-green 1.5s infinite; vertical-align: middle; margin-right: 4px; }
+
+@media (max-width: 1000px) {
+  .services-grid { grid-template-columns: repeat(2, 1fr); }
+  .monitoring-content { grid-template-columns: 1fr; }
+}

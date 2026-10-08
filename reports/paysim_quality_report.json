@@ -1,0 +1,29 @@
+{
+  "dataset_name": "paysim_mobile_money",
+  "domain": "MOBILE_MONEY",
+  "row_count": 6362620,
+  "column_count": 11,
+  "total_missing_values": 0,
+  "duplicate_rows": 0,
+  "fraud_count": 8213,
+  "legitimate_count": 6354407,
+  "fraud_percentage": 0.12908204481801522,
+  "fraud_by_type": {
+    "CASH_OUT": 4116,
+    "TRANSFER": 4097
+  },
+  "key_insight": "Fraud ONLY occurs in TRANSFER and CASH_OUT transactions.",
+  "columns": {
+    "step": "int64",
+    "type": "object",
+    "amount": "float64",
+    "nameOrig": "object",
+    "oldbalanceOrg": "float64",
+    "newbalanceOrig": "float64",
+    "nameDest": "object",
+    "oldbalanceDest": "float64",
+    "newbalanceDest": "float64",
+    "isFraud": "int64",
+    "isFlaggedFraud": "int64"
+  }
+}

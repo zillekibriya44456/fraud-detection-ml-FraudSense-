@@ -1,4 +1,3 @@
-import pandas as pd
 
 def engineer_realtime_features(df):
     """

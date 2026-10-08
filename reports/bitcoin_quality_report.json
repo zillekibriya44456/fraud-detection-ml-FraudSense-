@@ -1,0 +1,11 @@
+{
+  "dataset_name": "elliptic_bitcoin",
+  "domain": "CRYPTO_BITCOIN",
+  "total_rows_with_unknowns": 203769,
+  "labeled_rows": 46564,
+  "feature_count": 165,
+  "fraud_count": 4545,
+  "legitimate_count": 42019,
+  "fraud_percentage": 9.760759384932566,
+  "splitting_strategy": "Temporal (time_step)"
+}

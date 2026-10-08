@@ -1,18 +1,15 @@
 import os
-import sys
 import joblib
 import xgboost as xgb
 import logging
 import warnings
 
+from src.preprocessing import load_and_clean_data, preprocess_and_split
+from src.evaluate import evaluate_model
+
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Ensure modules can be found
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.preprocessing import load_and_clean_data, preprocess_and_split
-from src.evaluate import evaluate_model
 
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../data/raw/PS_20174392719_1491204439457_log.csv'))
 MODEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models'))
