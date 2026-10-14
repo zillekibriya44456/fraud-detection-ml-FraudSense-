@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { QrCode, ShieldAlert, AlertTriangle, RefreshCw, Smartphone } from 'lucide-react';
 import './QRScanner.css';
+import { soundManager } from '../audio/soundManager';
 
 interface QRResult {
   qr_type: string;
@@ -23,6 +24,7 @@ const QRScanner = () => {
     const textToScan = rawPayload || payload;
     if (!textToScan.trim()) return;
 
+    soundManager.playEvent('qr.started');
     setLoading(true);
     setResult(null);
 
@@ -34,8 +36,14 @@ const QRScanner = () => {
       });
       const data = await res.json();
       setResult(data);
+
+      const r = (data.risk_level || '').toUpperCase();
+      if (r === 'CRITICAL') soundManager.playEvent('qr.critical_risk');
+      else if (r === 'HIGH') soundManager.playEvent('qr.high_risk');
+      else if (r === 'SUSPICIOUS' || r === 'MEDIUM') soundManager.playEvent('qr.medium_risk');
+      else soundManager.playEvent('qr.low_risk');
     } catch {
-      // fallback
+      soundManager.playEvent('transaction.failed');
     } finally {
       setLoading(false);
     }

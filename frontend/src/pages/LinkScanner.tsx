@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Globe, ShieldAlert, CheckCircle2, AlertTriangle, ArrowRight, Lock, RefreshCw } from 'lucide-react';
 import './LinkScanner.css';
+import { soundManager } from '../audio/soundManager';
 
 interface URLResult {
   url: string;
@@ -27,6 +28,7 @@ const LinkScanner = () => {
     const urlToScan = targetUrl || urlInput;
     if (!urlToScan.trim()) return;
 
+    soundManager.playEvent('url.started');
     setLoading(true);
     setError(null);
     setResult(null);
@@ -42,7 +44,14 @@ const LinkScanner = () => {
         throw new Error(data.detail || 'URL Scan Failed');
       }
       setResult(data);
+
+      const r = (data.risk_level || '').toUpperCase();
+      if (r === 'CRITICAL') soundManager.playEvent('url.critical_risk');
+      else if (r === 'HIGH') soundManager.playEvent('url.high_risk');
+      else if (r === 'SUSPICIOUS' || r === 'MEDIUM') soundManager.playEvent('url.medium_risk');
+      else soundManager.playEvent('url.low_risk');
     } catch (err: any) {
+      soundManager.playEvent('url.error');
       setError(err.message || 'Error communicating with security scanner.');
     } finally {
       setLoading(false);

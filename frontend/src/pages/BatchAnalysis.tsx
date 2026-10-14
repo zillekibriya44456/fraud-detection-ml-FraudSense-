@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, Play, Download, CheckCircle, AlertTriangle, Loader, Layers } from 'lucide-react';
+import { soundManager } from '../audio/soundManager';
 import './BatchAnalysis.css';
 
 const API_BASE = '/api';
@@ -73,6 +74,7 @@ const BatchAnalysis: React.FC = () => {
     setProgress(0);
     setResults([]);
     setStats(null);
+    soundManager.playEvent('transaction.submitted');
 
     const CHUNK = 10;
     const allResults: BatchResult[] = [];
@@ -123,6 +125,14 @@ const BatchAnalysis: React.FC = () => {
       avgLatency: allResults.length ? totalLatency / allResults.length : 0,
     });
     setProcessing(false);
+
+    if (errors > 0 && allResults.length === 0) {
+      soundManager.playEvent('transaction.failed');
+    } else if (fraudCount > 0) {
+      soundManager.playEvent('paysim.high_risk');
+    } else {
+      soundManager.playEvent('dashboard.refresh');
+    }
   };
 
   const downloadResults = () => {

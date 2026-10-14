@@ -7,8 +7,15 @@ import {
 } from 'lucide-react';
 import './Sidebar.css';
 
+import { soundManager } from '../../audio/soundManager';
+
 const NavItem = ({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) => (
-  <NavLink to={to} end className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+  <NavLink
+    to={to}
+    end
+    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+    onClick={() => soundManager.playEvent('navigation.click')}
+  >
     <Icon size={16} />
     <span>{label}</span>
   </NavLink>

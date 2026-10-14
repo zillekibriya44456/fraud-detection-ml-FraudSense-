@@ -1,6 +1,11 @@
+import os
+import json
+import logging
+import requests
 import re
 import ipaddress
 import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends
@@ -85,8 +90,9 @@ def scan_url(request: URLScanRequest):
         risk_score += 0.35
 
     # 3. Path & Query Suspicious Keywords
-    suspicious_keywords = ["login", "verify", "secure", "update", "account", "banking", "wallet", "otp", "password", "confirm", "claim", "reward", "free"]
-    matched_kw = [kw for kw in suspicious_keywords if kw in parsed.path.lower() or kw in parsed.query.lower()]
+    suspicious_keywords = ["login", "verify", "secure", "update", "account", "banking", "wallet", "otp", "password", "confirm", "claim", "reward", "free", "signin", "credential", "auth"]
+    path_and_query = (parsed.path + "?" + parsed.query).lower()
+    matched_kw = [kw for kw in suspicious_keywords if kw in path_and_query]
     if matched_kw:
         warnings.append(f"Suspicious security/credential keywords detected in URL path: {', '.join(matched_kw)}")
         risk_score += 0.20 * min(len(matched_kw), 3)
@@ -101,24 +107,45 @@ def scan_url(request: URLScanRequest):
             risk_score += 0.45
             break
 
-    # ML Phishing Classifier Fusion
+    # 5. Suspicious TLD check (.top, .xyz, .gq, .tk are heavily abused by phishing campaigns)
+    SUSPICIOUS_TLDS = {"top", "xyz", "gq", "tk", "ml", "cf", "ga", "pw", "zip", "review", "country", "kim", "bid", "stream", "racing"}
+    tld = domain.split(".")[-1] if "." in domain else ""
+    if tld in SUSPICIOUS_TLDS:
+        warnings.append(f"High-risk TLD '.{tld}' detected — frequently abused in phishing campaigns.")
+        risk_score += 0.30
+
+    # 6. Compound phishing domain pattern (e.g., bank-update-security-login.top)
+    import re as _re
+    phishing_domain_kw = ["bank", "secure", "update", "verify", "login", "account", "signin", "credential", "kyc", "otp"]
+    domain_kw_hits = [kw for kw in phishing_domain_kw if kw in domain]
+    if len(domain_kw_hits) >= 2:
+        warnings.append(f"Phishing domain pattern: domain contains {len(domain_kw_hits)} suspicious keyword signals ({', '.join(domain_kw_hits)}).")
+        risk_score += 0.30 * min(len(domain_kw_hits), 2)
+    if _re.search(r'[a-z]+-[a-z]+-(login|update|secure|verify|bank)', domain):
+        warnings.append("Hyphenated compound phishing domain detected (e.g., 'xxx-xxx-login.tld').")
+        risk_score += 0.20
+
+    # 7. ML Phishing Classifier Fusion
     try:
         from src.risk_engine import risk_engine
         ml_res = risk_engine.predict_url({"url": raw_url})
         evidence.append(f"ML Phishing Detector: {ml_res['label']} (Probability: {ml_res['fraud_probability']:.2f}, Risk Score: {ml_res['risk_score']}/100)")
         for exp in ml_res.get("explanations", []):
             warnings.append(f"ML Factor: {exp}")
-        if ml_res["label"] == "PHISHING":
-            risk_score = max(risk_score, ml_res["fraud_probability"])
+        # Fuse ML result: take max of current risk_score and ML's phishing probability
+        risk_score = max(risk_score, ml_res["fraud_probability"])
     except Exception:
         pass
 
     # Determine Risk Level
     risk_score = min(1.0, risk_score)
-    if risk_score >= 0.70:
+    if risk_score >= 0.80:
+        risk_level = "CRITICAL"
+        recommendation = "CRITICAL: Do NOT enter any credentials or payment details. This URL exhibits multiple phishing indicators."
+    elif risk_score >= 0.55:
         risk_level = "HIGH"
-        recommendation = "CRITICAL: Do NOT proceed with payment or enter credentials on this URL."
-    elif risk_score >= 0.35:
+        recommendation = "HIGH RISK: Do NOT proceed with payment or enter credentials on this URL. Verify via official channels."
+    elif risk_score >= 0.30:
         risk_level = "SUSPICIOUS"
         recommendation = "WARNING: Verify payee domain authenticity via official channels before proceeding."
     else:
@@ -368,7 +395,53 @@ def copilot_chat(request: CopilotRequest):
             recommended_tools=["analyze_sms", "analyze_phishing"]
         )
 
-    # General FraudSense AI Assistance
+    # Check for Gemini LLM API Key to provide dynamic answers
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            system_instruction = (
+                "You are FraudSense AI Copilot, an elite autonomous financial cyber-intelligence and fraud prevention assistant. "
+                "You assist fraud analysts and users with inspecting suspicious financial transactions, payment URLs, UPI QR codes, "
+                "SMS/Email phishing, credit card anomalies, bank account fraud, and crypto/blockchain mixers. "
+                "The platform uses multi-domain XGBoost and Random Forest ML engines (PaySim, UPI, Card, Bank, Bitcoin, SMS, Email, URL). "
+                "Provide direct, insightful, concise, professional, and actionable cyber-security and financial crime guidance in Markdown format."
+            )
+
+            prompt = f"{system_instruction}\n\nUser Question/Investigation Query:\n{request.message}"
+            candidate_models = ["gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+            
+            for model_name in candidate_models:
+                endpoint_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
+                try:
+                    resp = requests.post(
+                        endpoint_url,
+                        json={
+                            "contents": [{"parts": [{"text": prompt}]}],
+                            "generationConfig": {"temperature": 0.4, "maxOutputTokens": 800}
+                        },
+                        timeout=8
+                    )
+                    if resp.status_code == 200:
+                        resp_data = resp.json()
+                        candidates = resp_data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts and "text" in parts[0]:
+                                llm_reply = parts[0]["text"].strip()
+                                return CopilotResponse(
+                                    reply=llm_reply,
+                                    recommended_tools=["analyze_transaction", "analyze_url", "analyze_qr", "threat_intelligence"]
+                                )
+                    elif resp.status_code in [503, 429]:
+                        logging.info("Model %s returned status %d, trying fallback...", model_name, resp.status_code)
+                        continue
+                except Exception as req_err:
+                    logging.warning("Error querying model %s: %s", model_name, req_err)
+                    continue
+        except Exception as e:
+            logging.warning("Gemini Copilot generation failed, using local heuristic: %s", e)
+
+    # General FraudSense AI Assistance (Fallback)
     reply = (
         "Hello! I am your **FraudSense AI Intelligence Copilot**.\n\n"
         "I monitor financial transactions, payment URLs, UPI QR payloads, and phishing vectors in real time. "

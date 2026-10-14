@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bot, User, Send, Zap, Terminal, RefreshCw } from 'lucide-react';
 import './Copilot.css';
+import { soundManager } from '../audio/soundManager';
 
 interface Message {
   sender: 'user' | 'bot';
@@ -21,6 +22,10 @@ const Copilot = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    soundManager.playEvent('copilot.opened');
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,7 +57,9 @@ const Copilot = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, botMsg]);
+      soundManager.playEvent('copilot.response_complete');
     } catch {
+      soundManager.playEvent('copilot.error');
       setMessages((prev) => [
         ...prev,
         {

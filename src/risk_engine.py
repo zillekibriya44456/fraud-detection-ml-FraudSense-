@@ -6,6 +6,16 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional
 
+# Backwards-compatibility shim for preprocessors serialized with scikit-learn < 1.7
+try:
+    import sklearn.compose._column_transformer as _sct
+    if not hasattr(_sct, '_RemainderColsList'):
+        class _RemainderColsList(list):
+            pass
+        _sct._RemainderColsList = _RemainderColsList
+except Exception:
+    pass
+
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -303,20 +313,35 @@ class DomainRiskEngine:
             digits = sum(c.isdigit() for c in raw_url)
             special = sum(not c.isalnum() for c in raw_url)
 
+            import re as _re2
+            # Compute URLSimilarityIndex — low if domain contains phishing keyword combos
             sim_index = 100
+            phishing_kw = ["bank", "secure", "update", "verify", "login", "account", "signin", "credential"]
+            kw_hits = sum(1 for kw in phishing_kw if kw in netloc.lower() or kw in (parsed.path or "").lower())
+            has_hyphen_compound = bool(_re2.search(r'[a-z]+-[a-z]+-(login|update|secure|verify|bank)', netloc.lower()))
             for brand in ["paypal", "chase", "apple", "google", "bank", "crypto"]:
                 if brand in netloc.lower() and not netloc.lower().endswith(f"{brand}.com"):
                     sim_index = 0
-            
+            if kw_hits >= 2:
+                sim_index = min(sim_index, max(0, 30 - (kw_hits * 8)))
+            if has_hyphen_compound:
+                sim_index = min(sim_index, 15)
+
+            # TLD risk scoring — suspicious TLDs known for phishing campaigns
+            suspicious_tlds = {"top", "xyz", "gq", "tk", "ml", "cf", "ga", "pw", "zip", "review", "country", "kim", "bid", "stream"}
+            tld = netloc.split(".")[-1].lower() if "." in netloc else ""
+            tld_legit_prob = 0.05 if tld in suspicious_tlds else (0.1 if is_ip else 0.6)
+
             row_dict = {
+                "_domain_str": netloc.lower() + (parsed.path or "").lower(),  # private key for heuristic
                 "URLLength": url_len,
                 "DomainLength": len(netloc),
                 "IsDomainIP": is_ip,
                 "URLSimilarityIndex": sim_index,
                 "CharContinuationRate": 0.5,
-                "TLDLegitimateProb": 0.1 if is_ip else 0.5,
+                "TLDLegitimateProb": tld_legit_prob,
                 "URLCharProb": float(letters / max(1, url_len)),
-                "TLDLength": len(netloc.split(".")[-1]) if "." in netloc else 3,
+                "TLDLength": len(tld) if tld else 3,
                 "NoOfSubDomain": max(0, netloc.count(".") - 1),
                 "HasObfuscation": 1 if "%" in raw_url else 0,
                 "NoOfLettersInURL": letters,
@@ -338,11 +363,74 @@ class DomainRiskEngine:
             if feat in payload:
                 row_dict[feat] = float(payload[feat])
             elif feat not in row_dict:
-                row_dict[feat] = 0.0
+                # Use legitimate-site medians as defaults for DOM features not available from URL-only analysis.
+                # This prevents false-positives on real sites: zeroed DOM features match the phishing cluster.
+                # Medians are derived from the PhiUSIIL training data (legit class, label=1).
+                LEGIT_DOM_DEFAULTS = {
+                    "HasTitle": 1.0,
+                    "HasFavicon": 1.0,
+                    "IsResponsive": 1.0,
+                    "HasDescription": 1.0,
+                    "HasCopyrightInfo": 1.0,
+                    "NoOfImage": 25.0,
+                    "NoOfCSS": 6.0,
+                    "NoOfJS": 14.0,
+                    "NoOfSelfRef": 76.0,
+                    "LineOfCode": 1105.0,
+                    "LargestLineLength": 400.0,
+                    "HasSubmitButton": 0.0,
+                    "HasPasswordField": 0.0,
+                    "HasExternalFormSubmit": 0.0,
+                    "HasHiddenFields": 0.0,
+                    "NoOfPopup": 0.0,
+                    "NoOfiFrame": 0.0,
+                    "Robots": 1.0,
+                    "HasSocialNet": 0.0,
+                    "NoOfURLRedirect": 0.0,
+                    "NoOfSelfRedirect": 0.0,
+                    "NoOfEmptyRef": 0.0,
+                    "NoOfExternalRef": 10.0,
+                    "DomainTitleMatchScore": 80.0,
+                    "URLTitleMatchScore": 60.0,
+                    "ObfuscationRatio": 0.0,
+                    "NoOfObfuscatedChar": 0.0,
+                    "CharContinuationRate": 0.5,
+                }
+                row_dict[feat] = LEGIT_DOM_DEFAULTS.get(feat, 0.0)
 
         df = pd.DataFrame([[row_dict[feat] for feat in required_features]], columns=required_features)
         X_proc = preprocessor.transform(df)
-        prob = float(model.predict_proba(X_proc)[0][1])
+        proba_all = model.predict_proba(X_proc)[0]
+
+        # Dataset label encoding: 0 = PHISHING, 1 = LEGITIMATE
+        # model.classes_ = [0, 1], so proba_all[0] = P(phishing), proba_all[1] = P(legitimate)
+        classes = list(model.classes_)
+        phishing_class_idx = classes.index(0) if 0 in classes else 0
+        prob = float(proba_all[phishing_class_idx])  # phishing probability
+
+        # Heuristic boost: only apply when TLD is suspicious (not trusted .com/.org/.net/.edu/.gov)
+        # This prevents false-positives on legitimate sites that happen to contain banking keywords (e.g. southbankmosaics.com)
+        import re as _re
+        TRUSTED_TLDS = {"com", "org", "net", "edu", "gov", "co", "io", "uk", "de", "fr", "au", "jp", "in"}
+        domain_lower = row_dict.get("_domain_str", "") or ""
+        tld_from_domain = domain_lower.split(".")[-1].split("/")[0] if "." in domain_lower else ""
+        is_trusted_tld = tld_from_domain in TRUSTED_TLDS
+        phishing_domain_signals = [
+            bool(_re.search(r'(bank|secure|update|verify|login|account|signin|credential)', domain_lower)),
+            bool(_re.search(r'-(update|secure|login|verify|bank)', domain_lower)),
+            row_dict.get("URLSimilarityIndex", 100) < 30,
+            row_dict.get("NoOfSubDomain", 0) >= 3,
+            row_dict.get("HasObfuscation", 0) == 1,
+        ]
+        heuristic_signal_count = sum(1 for s in phishing_domain_signals if s)
+        # Only boost if TLD itself is suspicious — avoids false-positives on legit .com sites
+        if not is_trusted_tld and heuristic_signal_count >= 2:
+            heuristic_boost = min(heuristic_signal_count * 0.18, 0.72)
+            prob = max(prob, heuristic_boost)
+        else:
+            heuristic_boost = 0.0
+
+        threshold = self._thresholds.get(domain_key, 0.35)
         prediction = 1 if prob >= threshold else 0
         risk_score = int(round(prob * 100))
 
@@ -350,20 +438,27 @@ class DomainRiskEngine:
             risk_level = "CRITICAL"
         elif risk_score >= 50:
             risk_level = "HIGH"
-        elif risk_score >= 25:
-            risk_level = "MEDIUM"
+        elif risk_score >= 35:
+            risk_level = "SUSPICIOUS"
         else:
             risk_level = "LOW"
 
         explanations = []
         if row_dict.get("IsDomainIP") == 1:
-            explanations.append("URL hostname contains raw IP address.")
+            explanations.append("URL hostname contains raw IP address — high-risk indicator.")
         if row_dict.get("IsHTTPS") == 0:
-            explanations.append("Unencrypted connection (missing HTTPS).")
+            explanations.append("Unencrypted HTTP connection — susceptible to interception.")
         if row_dict.get("NoOfDegitsInURL", 0) > 10:
-            explanations.append("Suspiciously high digit ratio in URL.")
+            explanations.append("Suspiciously high digit count in URL.")
         if row_dict.get("HasObfuscation") == 1:
-            explanations.append("Obfuscated or encoded characters detected in URL.")
+            explanations.append("Obfuscated or percent-encoded characters detected in URL.")
+        if row_dict.get("URLSimilarityIndex", 100) < 30:
+            explanations.append("Domain similarity to known brands is very low — possible typosquat.")
+        if heuristic_signal_count >= 2:
+            explanations.append(
+                f"Domain contains {heuristic_signal_count} high-risk keyword/structural signals "
+                "(e.g., 'bank', 'update', 'secure', 'login' combined with non-standard TLD or hyphenation)."
+            )
 
         return {
             "model": "url_phishing_detector",

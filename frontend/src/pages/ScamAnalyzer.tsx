@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MessageSquare, AlertTriangle, RefreshCw, Send } from 'lucide-react';
 import './ScamAnalyzer.css';
+import { soundManager } from '../audio/soundManager';
 
 interface TextResult {
   scam_category: string;
@@ -21,6 +22,7 @@ const ScamAnalyzer = () => {
     const textToScan = sample || inputText;
     if (!textToScan.trim()) return;
 
+    soundManager.playEvent('sms.started');
     setAnalyzing(true);
     setResult(null);
 
@@ -32,8 +34,14 @@ const ScamAnalyzer = () => {
       });
       const data = await res.json();
       setResult(data);
+
+      const r = (data.risk_level || '').toUpperCase();
+      if (r === 'CRITICAL') soundManager.playEvent('sms.critical_risk');
+      else if (r === 'HIGH') soundManager.playEvent('sms.high_risk');
+      else if (r === 'SUSPICIOUS' || r === 'MEDIUM') soundManager.playEvent('sms.medium_risk');
+      else soundManager.playEvent('sms.low_risk');
     } catch {
-      // fallback
+      soundManager.playEvent('transaction.failed');
     } finally {
       setAnalyzing(false);
     }

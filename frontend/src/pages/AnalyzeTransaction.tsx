@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { FileSearch, Send, CheckCircle, XCircle, AlertTriangle, Loader, ChevronRight } from 'lucide-react';
 import './AnalyzeTransaction.css';
 
+import { soundManager } from '../audio/soundManager';
+
 const API_BASE = '/api';
 
 type StepStatus = 'idle' | 'running' | 'done' | 'error';
@@ -122,6 +124,10 @@ const AnalyzeTransaction: React.FC = () => {
     setAnalysing(true);
     setSteps(DEFAULT_STEPS.map(s => ({ ...s, status: 'idle' })));
 
+    soundManager.playEvent('transaction.submitted');
+    const startEventKey = `${selectedDomain}.started`;
+    soundManager.playEvent(startEventKey);
+
     try {
       // Step 0 – Validate
       updateStep(0, 'running');
@@ -142,6 +148,7 @@ const AnalyzeTransaction: React.FC = () => {
           payload.transaction_id = 'TX-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
         }
       } catch (e) {
+        soundManager.playEvent('transaction.invalid_input');
         updateStep(2, 'error');
         setError('Invalid JSON payload format.');
         setAnalysing(false);
@@ -181,7 +188,11 @@ const AnalyzeTransaction: React.FC = () => {
       // Step 5 – Done
       updateStep(5, 'done', '');
       setResult(data);
+
+      // Play situation-aware sound based on real ML decision
+      soundManager.playDecisionSound(selectedDomain, data);
     } catch (e: any) {
+      soundManager.playEvent('transaction.failed');
       setError(e.message || 'Analysis failed. Is the backend running?');
       setSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'error' } : s));
     } finally {

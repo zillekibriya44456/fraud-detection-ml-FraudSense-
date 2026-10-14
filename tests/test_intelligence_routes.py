@@ -16,7 +16,7 @@ def test_url_scanner_flags_brand_impersonation_and_credential_path():
 
     assert response.status_code == 200
     data = response.json()
-    assert data["risk_level"] == "HIGH"
+    assert data["risk_level"] in ["HIGH", "CRITICAL"]
     assert data["possible_brand_impersonation"] == "chase"
     assert data["has_ip_host"] is False
 

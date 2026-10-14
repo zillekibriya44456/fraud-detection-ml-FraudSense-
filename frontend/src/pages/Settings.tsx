@@ -3,6 +3,8 @@ import {
   Sliders, Bell, Key, Cpu, Save, RefreshCw, 
   CheckCircle2, Copy, Eye, EyeOff
 } from 'lucide-react';
+import { SoundSettings } from '../components/settings/SoundSettings';
+import { soundManager } from '../audio/soundManager';
 import './Settings.css';
 
 const Settings = () => {
@@ -38,17 +40,25 @@ const Settings = () => {
   const handleCopyKey = () => {
     navigator.clipboard.writeText(apiKey);
     setCopiedKey(true);
+    soundManager.playEvent('navigation.click');
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
   const handleGenerateNewKey = () => {
     const randomHex = Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     setApiKey(`fs_live_${randomHex}`);
+    soundManager.playEvent('navigation.click');
   };
 
   const handleSave = () => {
     setSaveSuccess(true);
+    soundManager.playEvent('settings.saved');
     setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleReset = () => {
+    soundManager.playEvent('settings.reset');
+    window.location.reload();
   };
 
   return (
@@ -66,7 +76,7 @@ const Settings = () => {
               <span>Settings saved successfully</span>
             </div>
           )}
-          <button className="btn-secondary flex-center gap-2" onClick={() => window.location.reload()}>
+          <button className="btn-secondary flex-center gap-2" onClick={handleReset}>
             <RefreshCw size={14} /> Reset
           </button>
           <button className="btn-primary flex-center gap-2" onClick={handleSave}>
@@ -74,6 +84,9 @@ const Settings = () => {
           </button>
         </div>
       </div>
+
+      {/* DEDICATED SOUND & ALERT SETTINGS SECTION */}
+      <SoundSettings />
 
       <div className="settings-grid">
         {/* SECTION 1: DECISION ENGINE THRESHOLDS */}

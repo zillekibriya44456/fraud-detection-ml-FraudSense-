@@ -8,7 +8,8 @@ from api.security import require_api_key
 
 router = APIRouter(prefix="/cases", tags=["Case Management"])
 
-@router.get("/", response_model=List[CaseResponse], dependencies=[Depends(require_api_key)])
+@router.get("", response_model=List[CaseResponse], dependencies=[Depends(require_api_key)])
+@router.get("/", response_model=List[CaseResponse], dependencies=[Depends(require_api_key)], include_in_schema=False)
 def get_cases(status: str = None, severity: str = None, db: Session = Depends(get_db)):
     query = db.query(FraudCase)
     if status:

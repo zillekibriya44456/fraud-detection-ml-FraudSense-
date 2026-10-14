@@ -99,8 +99,17 @@ _general_limiter = SlidingWindowRateLimiter(max_requests=200, window_seconds=60)
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     """
     Legacy API Key auth (backward compatible). Used for service-to-service calls.
-    Overridden by require_auth for user-facing endpoints.
+    Allows unauthenticated access in non-production mode.
     """
+    if getattr(settings, "environment", "development") != "production":
+        if x_api_key and settings.api_key and not secrets.compare_digest(x_api_key, settings.api_key):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API Key.",
+                headers={"WWW-Authenticate": "ApiKey"},
+            )
+        return
+
     if settings.api_key and not (x_api_key and secrets.compare_digest(x_api_key, settings.api_key)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

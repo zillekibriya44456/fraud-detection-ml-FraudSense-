@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react';
+import { soundManager } from '../audio/soundManager';
 import './CaseManagement.css';
 
 const API_BASE = '/api';
@@ -87,12 +88,16 @@ const CaseManagement: React.FC = () => {
         }),
       });
       if (res.ok) {
+        soundManager.playEvent('case.status_updated');
         setNoteInput('');
         await fetchCases();
         await loadCaseDetails(selectedCase.id);
+      } else {
+        soundManager.playEvent('case.update_failed');
       }
     } catch (e) {
       console.error("Failed to update status", e);
+      soundManager.playEvent('case.update_failed');
     } finally {
       setUpdating(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Server, Activity, Database, Cpu, Zap, CheckCircle, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { soundManager } from '../audio/soundManager';
 import './SystemMonitoring.css';
 
 const API_BASE = '/api';
@@ -31,7 +32,7 @@ const SystemMonitoring: React.FC = () => {
     setLogs(prev => [{ time, level, message }, ...prev].slice(0, 80));
   };
 
-  const probe = async () => {
+  const probe = async (isManual = false) => {
     const start = Date.now();
     try {
       const [h, r] = await Promise.all([
@@ -47,15 +48,27 @@ const SystemMonitoring: React.FC = () => {
         { time: new Date().toLocaleTimeString(), latency },
       ]);
       addLog(online ? 'INFO' : 'ERROR', `Health check — ${online ? 'HEALTHY' : 'FAILED'} (${latency}ms)`);
+      if (!online) {
+        soundManager.playEvent('monitoring.service_error');
+      } else if (isManual) {
+        soundManager.playEvent('dashboard.refresh');
+      }
     } catch {
       setHealth('OFFLINE');
       setReadiness(false);
       addLog('ERROR', 'API unreachable — health check failed');
+      soundManager.playEvent('monitoring.service_error');
     }
 
     try {
       const d = await fetch(`${API_BASE}/monitoring/drift`);
-      if (d.ok) setDrift(await d.json());
+      if (d.ok) {
+        const driftData = await d.json();
+        setDrift(driftData);
+        if (driftData?.drift_detected) {
+          soundManager.playEvent('monitoring.drift_detected');
+        }
+      }
       const p = await fetch(`${API_BASE}/monitoring/performance`);
       if (p.ok) setPerformance(await p.json());
     } catch { /* monitoring endpoints optional */ }
@@ -90,7 +103,7 @@ const SystemMonitoring: React.FC = () => {
           <h2>SYSTEM MONITORING</h2>
           <p className="subtitle">Live infrastructure health, API latency, and model status.</p>
         </div>
-        <button className="btn-secondary refresh-btn" onClick={probe}>
+        <button className="btn-secondary refresh-btn" onClick={() => probe(true)}>
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
