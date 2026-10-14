@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: fraudsense-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: development
+      - key: CORS_ORIGINS
+        value: "https://fraud-detection-ml-fraud-sense.vercel.app,https://*.vercel.app,http://localhost:5173"
+      - key: DATABASE_URL
+        value: "sqlite:///./data/audit_log.db"
