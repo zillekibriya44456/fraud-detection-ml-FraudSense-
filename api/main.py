@@ -5,6 +5,7 @@ from api.routes import router
 from api.case_routes import router as case_router
 from api.monitoring_routes import router as monitoring_router
 from api.intelligence_routes import router as intelligence_router
+from api.upload_routes import router as upload_router
 from database import models
 from database.database import engine
 from api.services import fraud_service
@@ -21,12 +22,16 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="FraudSense AI", description="Autonomous Financial Intelligence & Fraud Prevention API")
 
-# Allow the React dev server (port 5173) and production frontend
+# Allow the React dev server (port 5173) and production frontend.
+# Note: allow_origin_regex handles wildcard subdomain patterns (e.g. *.vercel.app)
+# since CORSMiddleware does not support glob wildcards in allow_origins.
+_exact_origins = [o for o in settings.cors_origins if "*" not in o]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=_exact_origins,
+    allow_origin_regex=r"https://[a-zA-Z0-9\-]+\.vercel\.app",
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key", "X-Request-ID"],
 )
 
@@ -74,6 +79,7 @@ app.include_router(router)
 app.include_router(case_router)
 app.include_router(monitoring_router)
 app.include_router(intelligence_router)
+app.include_router(upload_router)
 
 @app.get("/")
 def read_root():

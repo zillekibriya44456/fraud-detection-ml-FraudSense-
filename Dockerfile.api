@@ -5,6 +5,7 @@ WORKDIR /app
 # Install system dependencies needed for XGBoost and binary wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
+    libzbar0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies

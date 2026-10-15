@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { soundManager } from '../audio/soundManager';
 import './SystemMonitoring.css';
 
-const API_BASE = '/api';
+import { API_BASE } from '../lib/apiClient';
 const TOOLTIP_STYLE = {
   backgroundColor: 'rgba(15,23,42,0.95)',
   border: '1px solid rgba(255,255,255,0.1)',

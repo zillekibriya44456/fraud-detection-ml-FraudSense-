@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MessageSquare, AlertTriangle, RefreshCw, Send } from 'lucide-react';
 import './ScamAnalyzer.css';
 import { soundManager } from '../audio/soundManager';
+import { API_BASE } from '../lib/apiClient';
 
 interface TextResult {
   scam_category: string;
@@ -27,7 +28,7 @@ const ScamAnalyzer = () => {
     setResult(null);
 
     try {
-      const res = await fetch('/api/v1/scans/sms', {
+      const res = await fetch(`${API_BASE}/v1/scans/sms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: textToScan }),

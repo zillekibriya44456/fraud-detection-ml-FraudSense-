@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
 import './ThreatIntelligencePage.css';
+import { API_BASE } from '../lib/apiClient';
 
 interface ThreatItem {
   id: string;
@@ -17,7 +18,7 @@ const ThreatIntelligencePage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/v1/threat-intelligence')
+    fetch(`${API_BASE}/v1/threat-intelligence`)
       .then((res) => res.json())
       .then((data) => setThreats(data))
       .catch(() => {})

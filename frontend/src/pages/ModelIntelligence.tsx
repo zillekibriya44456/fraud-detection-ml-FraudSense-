@@ -3,7 +3,7 @@ import { Box, AlertTriangle, Loader } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import './ModelIntelligence.css';
 
-const API_BASE = '/api';
+import { API_BASE } from '../lib/apiClient';
 
 const TOOLTIP_STYLE = {
   backgroundColor: 'rgba(15,23,42,0.95)',

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { QrCode, ShieldAlert, AlertTriangle, RefreshCw, Smartphone } from 'lucide-react';
 import './QRScanner.css';
 import { soundManager } from '../audio/soundManager';
+import { API_BASE } from '../lib/apiClient';
 
 interface QRResult {
   qr_type: string;
@@ -29,7 +30,7 @@ const QRScanner = () => {
     setResult(null);
 
     try {
-      const res = await fetch('/api/v1/scans/qr', {
+      const res = await fetch(`${API_BASE}/v1/scans/qr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload: textToScan }),

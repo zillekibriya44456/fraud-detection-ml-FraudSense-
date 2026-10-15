@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Award, Cpu, Play } from 'lucide-react';
 import './ResearchLab.css';
+import { API_BASE } from '../lib/apiClient';
 
 const ResearchLab = () => {
   const [simAmount, setSimAmount] = useState<number>(45000);
@@ -11,7 +12,7 @@ const ResearchLab = () => {
   const runSimulation = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/predict', {
+      const res = await fetch(`${API_BASE}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Globe, ShieldAlert, CheckCircle2, AlertTriangle, ArrowRight, Lock, RefreshCw } from 'lucide-react';
 import './LinkScanner.css';
 import { soundManager } from '../audio/soundManager';
+import { API_BASE } from '../lib/apiClient';
 
 interface URLResult {
   url: string;
@@ -34,7 +35,7 @@ const LinkScanner = () => {
     setResult(null);
 
     try {
-      const res = await fetch('/api/v1/scans/url', {
+      const res = await fetch(`${API_BASE}/v1/scans/url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: urlToScan }),

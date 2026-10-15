@@ -34,7 +34,7 @@ def load_settings() -> Settings:
         environment=environment,
         database_url=os.getenv("DATABASE_URL", os.getenv("DB_URL", "sqlite:///./data/audit_log.db")),
         model_dir=os.getenv("MODEL_DIR", os.path.join(root, "models", "pre_authorization")),
-        cors_origins=_csv(os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://fraud-detection-ml-fraud-sense.vercel.app,https://*.vercel.app")),
+        cors_origins=_csv(os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,https://fraud-detection-ml-fraud-sense.vercel.app")),
         api_key=api_key,
     )
 

@@ -3,7 +3,7 @@ import { ShieldAlert } from 'lucide-react';
 import { soundManager } from '../audio/soundManager';
 import './CaseManagement.css';
 
-const API_BASE = '/api';
+import { API_BASE } from '../lib/apiClient';
 
 interface CaseHistory {
   id: number;

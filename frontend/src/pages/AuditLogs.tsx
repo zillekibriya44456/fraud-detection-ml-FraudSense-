@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import './AuditLogs.css';
+import { API_BASE } from '../lib/apiClient';
 
 interface AuditRecord {
   id: number;
@@ -23,7 +24,7 @@ const AuditLogs = () => {
 
   const fetchLogs = () => {
     setLoading(true);
-    fetch('/api/v1/audit/logs')
+    fetch(`${API_BASE}/v1/audit/logs`)
       .then((res) => res.json())
       .then((data) => setLogs(data))
       .catch(() => {})

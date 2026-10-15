@@ -3,7 +3,7 @@ import { Upload, Play, Download, CheckCircle, AlertTriangle, Loader, Layers } fr
 import { soundManager } from '../audio/soundManager';
 import './BatchAnalysis.css';
 
-const API_BASE = '/api';
+import { API_BASE } from '../lib/apiClient';
 
 interface BatchResult {
   fraud_probability: number;
