@@ -3,7 +3,9 @@
   flex-direction: column;
   gap: 20px;
   animation: fadeUp 0.35s ease;
-  height: calc(100vh - 100px); /* Adjust based on topbar height */
+  height: 100%;
+  min-height: 0;
+  flex: 1;
 }
 
 .cases-layout {
@@ -175,3 +177,20 @@
 
 .p-4 { padding: 16px; }
 .text-center { text-align: center; }
+
+@media (max-width: 1023px) {
+  .cases-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .cases-list-panel {
+    max-height: 380px;
+  }
+}
+
+@media (max-width: 639px) {
+  .case-meta-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
